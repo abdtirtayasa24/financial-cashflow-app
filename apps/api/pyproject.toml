@@ -1,0 +1,84 @@
+[project]
+name = "financial-cashflow-api"
+version = "0.1.0"
+description = "FastAPI backend for financial cashflow recording and BI dashboard app"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "fastapi[standard]>=0.138.0,<1.0.0",
+  "uvicorn[standard]>=0.35.0,<1.0.0",
+  "pydantic>=2.11.0,<3.0.0",
+  "pydantic-settings>=2.10.0,<3.0.0",
+
+  # Supabase database/auth client
+  "supabase>=2.30.0,<3.0.0",
+
+  # Auth/JWT validation
+  "python-jose[cryptography]>=3.4.0,<4.0.0",
+
+  # File upload support
+  "python-multipart>=0.0.20,<1.0.0",
+  "aiofiles>=24.1.0,<25.0.0",
+
+  # Report exports
+  "openpyxl>=3.1.5,<4.0.0",
+  "reportlab>=4.2.5,<5.0.0",
+
+  # HTTP utilities, useful for Supabase Auth/JWKS checks
+  "httpx>=0.28.0,<1.0.0",
+
+  # Time/date utilities
+  "python-dateutil>=2.9.0,<3.0.0",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.4.0,<9.0.0",
+  "pytest-asyncio>=1.0.0,<2.0.0",
+  "pytest-cov>=6.2.0,<7.0.0",
+  "ruff>=0.12.0,<1.0.0",
+  "mypy>=1.16.0,<2.0.0",
+  "types-python-dateutil>=2.9.0,<3.0.0",
+]
+
+[tool.ruff]
+line-length = 90
+target-version = "py312"
+src = ["app"]
+
+[tool.ruff.lint]
+select = [
+  "E",
+  "F",
+  "I",
+  "B",
+  "UP",
+  "SIM",
+]
+ignore = []
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = []
+exclude = [
+  "tests/",
+]
+
+[[tool.mypy.overrides]]
+module = [
+  "supabase.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q --cov=app --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["app"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
