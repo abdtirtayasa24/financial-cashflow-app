@@ -132,6 +132,14 @@ Backend rules:
 
 The agent must keep financial rules in the service layer, not in route handlers.
 
+Python environment rules:
+
+* Always run Python from the project virtual environment at `apps/api/.venv`.
+* Activate it before any Python-related command: `source apps/api/.venv/Scripts/activate` (Windows Git Bash) or `apps/api/.venv/bin/activate` (Linux/macOS).
+* Alternatively invoke the venv interpreters directly: `apps/api/.venv/Scripts/python.exe` (Windows) or `apps/api/.venv/bin/python` (Linux/macOS).
+* Do not install backend dependencies into the system Python. Install into the venv: `python -m pip install .` and dev tools (`ruff`, `mypy`, `pytest`).
+* The venv is excluded from git (`.venv` is gitignored).
+
 ---
 
 ### 6. Database and Migration Rules
@@ -520,7 +528,7 @@ Backend-only secrets:
 SUPABASE_SERVICE_ROLE_KEY
 SUPABASE_URL
 UPLOAD_DIR
-JWT_SECRET_OR_JWKS_CONFIG
+JWT_SECRET
 ```
 
 Rules:

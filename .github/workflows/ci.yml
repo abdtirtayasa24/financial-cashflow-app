@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  web:
+    name: Web (Next.js)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+
+  api:
+    name: API (FastAPI)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install .
+      - run: ruff check .
+      - run: mypy .
+      - run: pytest
+
+  sql:
+    name: SQL syntax sanity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pglast
+      - name: Parse migrations and seed
+        run: |
+          python - <<'PY'
+          import glob
+          import sys
+
+          import pglast
+
+          files = sorted(glob.glob("supabase/migrations/*.sql")) + ["supabase/seed.sql"]
+          ok = True
+          for path in files:
+              sql = open(path, encoding="utf-8").read()
+              try:
+                  pglast.parse_sql(sql)
+                  print(f"OK   {path}")
+              except Exception as exc:  # noqa: BLE001
+                  ok = False
+                  print(f"FAIL {path}: {exc}")
+          sys.exit(0 if ok else 1)
+          PY
