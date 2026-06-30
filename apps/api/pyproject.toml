@@ -12,8 +12,8 @@ dependencies = [
   # Supabase database/auth client
   "supabase>=2.30.0,<3.0.0",
 
-  # Auth/JWT validation
-  "python-jose[cryptography]>=3.4.0,<4.0.0",
+  # Auth/JWT validation (Supabase access tokens; JWKS for asymmetric keys)
+  "PyJWT[crypto]>=2.8.0,<3.0.0",
 
   # File upload support
   "python-multipart>=0.0.20,<1.0.0",

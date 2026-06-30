@@ -21,7 +21,11 @@ class Settings(BaseSettings):
     supabase_service_role_key: str = ""
     supabase_anon_key: str = ""
 
+    # JWT validation config for Supabase Auth tokens.
+    # Asymmetric (RS256/ES256) tokens are verified via the JWKS endpoint
+    # (derived from supabase_url). HS256 tokens (legacy) fall back to jwt_secret.
     jwt_secret: str = ""
+    supabase_jwks_url: str = ""
 
     upload_dir: str = "/var/app/financial-cashflow/uploads"
     exports_dir: str = "/var/app/financial-cashflow/exports"
@@ -32,6 +36,12 @@ class Settings(BaseSettings):
         if self.cors_origins.strip() == "*":
             return ["*"]
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def jwks_url(self) -> str:
+        if self.supabase_jwks_url:
+            return self.supabase_jwks_url
+        return f"{self.supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
 
 
 @lru_cache

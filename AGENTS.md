@@ -529,6 +529,7 @@ SUPABASE_SERVICE_ROLE_KEY
 SUPABASE_URL
 UPLOAD_DIR
 JWT_SECRET
+SUPABASE_JWKS_URL
 ```
 
 Rules:
@@ -538,6 +539,7 @@ Rules:
 * Never print secrets in logs.
 * Never commit `.env` files.
 * Use `.env.example` with placeholder values only.
+* Validate Supabase access tokens via the JWKS endpoint (asymmetric RS256/ES256). The legacy `JWT_SECRET` (HS256) is a fallback only, used while the Supabase project still uses the legacy JWT secret; once the project is migrated to asymmetric signing keys and the legacy secret is revoked, leave `JWT_SECRET` empty.
 
 ---
 
