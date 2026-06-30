@@ -39,21 +39,25 @@ The MVP will focus on accurate cashflow recording, basic financial categorizatio
 
 ### Should Have
 
+> **Note:** All "Should Have" features are **in scope for the MVP**. They must be implemented alongside the "Must Have" features before the MVP is considered complete.
+
 * The system should support multi-department or cost-center tracking.
-* The system should support recurring transactions.
+* The system should support recurring transactions (two modes: auto-submit and draft/reminder — see Method Section 7a).
 * The system should allow exporting reports to Excel and PDF.
 * The dashboard should include charts for monthly cashflow trends, top expense categories, and cash balance movement.
-* The system should send notifications for pending approvals.
-* The system should allow importing transactions from CSV or Excel files.
+* The system should send notifications for pending approvals (in-app only — see Method Section 7b).
+* The system should allow importing transactions from CSV or Excel files (Finance Admin only — see Method Section 7c).
 
 ### Could Have
+
+> **Note:** All "Could Have" features are **explicitly deferred** until after the MVP is fully implemented.
 
 * Bank statement upload and reconciliation.
 * Budget vs actual reporting.
 * Forecasting based on historical cashflow.
 * Integration with accounting systems.
 * Integration with bank APIs.
-* Multi-currency support.
+* Multi-currency support. (Schema fields `currency`, `exchange_rate`, and `base_amount` exist as future-proofing only. The MVP uses IDR with `exchange_rate = 1` and `base_amount = amount`.)
 * Tax reporting support.
 
 ### Won’t Have in MVP
@@ -326,17 +330,37 @@ Supabase documents Row Level Security as a PostgreSQL primitive that can protect
 
 Roles:
 
-| Role               | Access                                                                |
-| ------------------ | --------------------------------------------------------------------- |
-| Employee           | Create draft transactions, submit transactions, view own transactions |
-| Department Manager | View department transactions                                          |
-| Finance Admin      | Review, approve, reject, void, edit allowed records, export reports   |
-| Management         | View dashboards and reports                                           |
-| System Admin       | Manage users, departments, categories, and configuration              |
+Roles are **strictly one-per-user** — no dual roles, no overlapping permissions.
+
+| Role               | Access                                                                                     |
+| ------------------ | ----------------------------------------------------------------------------------------- |
+| Employee           | Create draft transactions for own department, edit own draft/rejected transactions, submit own transactions, view own transactions |
+| Department Manager | View all transactions for own department. **Cannot** create, edit, submit, approve, reject, or void transactions |
+| Finance Admin      | View all transactions, create transactions for any department, review, approve, reject, void, edit allowed records, export reports |
+| Management         | View dashboards and reports only. **Cannot** create, edit, approve, reject, or void transactions |
+| System Admin       | Manage users, departments, categories, payment methods, cash accounts, and app settings. **Cannot** approve, reject, or void transactions |
+
+If a department head needs to create transactions, they should be assigned the `EMPLOYEE` role, not `DEPARTMENT_MANAGER`.
+
+**Row Level Security (RLS):**
+
+RLS is enabled on all tables as a defense-in-depth layer, even though the backend uses the service role key (which bypasses RLS).
+
+* **`user_profiles`**: users can only read their own profile (`WHERE auth.uid() = id`). This is the one table the frontend may access via Supabase client for session info.
+* **All other tables**: no RLS policy = no access via anon key. All data access goes through FastAPI using the service role key.
+* Even if the anon key is compromised, an attacker can only read their own profile — no access to transactions, financial data, or admin tables.
 
 ### 8. Core Database Schema
 
 Because Supabase already has an internal `auth.users` table, the application should use `user_profiles` instead of a standalone `users` table.
+
+**Important notes:**
+
+* **`payment_method_id` is nullable** (`UUID NULL`) intentionally. The application service layer enforces payment method as required for manual transaction entry, but the database allows null as a safety valve for edge cases (CSV import with missing column, adjusting entries). The user must fill it in during draft review before submission.
+* **Hierarchies are structural-only.** `parent_department_id` and `parent_category_id` exist for UI organization (tree display, indented dropdowns) only — not for report rollup. Report filters match on the exact department or category. Selecting a parent does NOT include its children. See ADR-0001.
+* **`updated_at` is maintained by PostgreSQL triggers** (`set_updated_at()` function + `BEFORE UPDATE` triggers per table), not by the application layer. This ensures `updated_at` is always correct regardless of how the update happens.
+* **Currency fields are future-proofing only.** `currency`, `exchange_rate`, and `base_amount` exist in the schema but the MVP always uses `IDR`, `exchange_rate = 1`, and `base_amount = amount`. No currency selection UI or conversion logic is built in the MVP.
+* **RLS is enabled on all tables.** See Method Section 7 for RLS policy details.
 
 ```sql
 CREATE TABLE departments (
@@ -472,6 +496,73 @@ CREATE TABLE report_snapshots (
   generated_by UUID NULL REFERENCES user_profiles(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TABLE app_settings (
+  key VARCHAR(80) PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_by UUID NULL REFERENCES user_profiles(id),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES user_profiles(id),
+  type VARCHAR(60) NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  message TEXT NOT NULL,
+  related_transaction_id UUID NULL REFERENCES cashflow_transactions(id),
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE recurring_transaction_templates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  direction VARCHAR(20) NOT NULL CHECK (
+    direction IN ('INFLOW', 'OUTFLOW')
+  ),
+  amount NUMERIC(18,2) NOT NULL CHECK (amount > 0),
+  cash_account_id UUID NOT NULL REFERENCES cash_accounts(id),
+  department_id UUID NOT NULL REFERENCES departments(id),
+  category_id UUID NOT NULL REFERENCES cashflow_categories(id),
+  payment_method_id UUID NULL REFERENCES payment_methods(id),
+  counterparty_name VARCHAR(180) NULL,
+  reference_no VARCHAR(120) NULL,
+  description TEXT NULL,
+  submission_mode VARCHAR(20) NOT NULL CHECK (
+    submission_mode IN ('AUTO_SUBMIT', 'DRAFT')
+  ),
+  frequency VARCHAR(20) NOT NULL CHECK (
+    frequency IN ('DAILY', 'WEEKLY', 'MONTHLY')
+  ),
+  interval_count INTEGER NOT NULL DEFAULT 1,
+  next_run_date DATE NOT NULL,
+  end_date DATE NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_by UUID NOT NULL REFERENCES user_profiles(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- updated_at trigger function and triggers
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_user_profiles_updated_at
+  BEFORE UPDATE ON user_profiles
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER trg_cashflow_transactions_updated_at
+  BEFORE UPDATE ON cashflow_transactions
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER trg_recurring_transaction_templates_updated_at
+  BEFORE UPDATE ON recurring_transaction_templates
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 ```
 
 ### 9. Supabase Migration Structure
@@ -486,6 +577,12 @@ supabase/
     202607010005_create_cashflow_transactions.sql
     202607010006_create_attachments_audit_logs.sql
     202607010007_create_report_snapshots.sql
+    202607010008_create_app_settings.sql
+    202607010009_create_notifications.sql
+    202607010010_create_recurring_transaction_templates.sql
+    202607010011_create_updated_at_triggers.sql
+    202607010012_enable_rls_policies.sql
+    202607010013_create_approved_cashflow_report_view.sql
 ```
 
 Migration workflow:
@@ -558,6 +655,7 @@ Recommended cron jobs:
 | Cleanup expired report exports   |          Every day 02:00 | Delete old generated Excel/PDF files                    |
 | Backup uploaded files            |          Every day 03:00 | Archive `/uploads` directory                            |
 | Check missing attachments        |          Every day 04:00 | Flag approved high-value transactions without documents |
+| Generate recurring transactions  |          Every day 05:00 | Create due transactions from recurring templates        |
 | Monthly financial snapshot       | First day of month 01:30 | Store previous month summary                            |
 
 Example VPS cron:
@@ -567,6 +665,7 @@ Example VPS cron:
 0 2 * * * docker compose exec api python -m app.jobs.cleanup_old_exports
 0 3 * * * /opt/financial-app/scripts/backup_uploads.sh
 0 4 * * * docker compose exec api python -m app.jobs.check_missing_attachments
+0 5 * * * docker compose exec api python -m app.jobs.generate_recurring_transactions
 30 1 1 * * docker compose exec api python -m app.jobs.monthly_financial_snapshot
 ```
 
@@ -616,6 +715,80 @@ Because Supabase query builders are good for standard CRUD, but financial report
 * Supabase query builder for CRUD.
 * PostgreSQL views for dashboard data.
 * PostgreSQL RPC functions for complex report queries.
+
+**Current cash balance calculation:**
+
+For each cash account:
+
+```sql
+current_balance = opening_balance
+  + SUM(base_amount WHERE direction = 'INFLOW' AND status = 'APPROVED' AND transaction_date >= opening_balance_date)
+  - SUM(base_amount WHERE direction = 'OUTFLOW' AND status = 'APPROVED' AND transaction_date >= opening_balance_date)
+```
+
+Key rules:
+* Only **APPROVED** transactions count toward the balance.
+* **VOIDED** transactions are excluded (status is no longer APPROVED, so the effect is automatically reversed).
+* Only transactions on or after `opening_balance_date` are summed.
+* Dashboard shows **total across all active cash accounts**.
+* `cash-account-balances` endpoint shows per-account breakdown.
+* **Current cash balance is always as-of now** — not affected by the dashboard's date range filter. It represents actual money available. The inflow/outflow/net KPIs *are* scoped to the date range filter.
+
+### 12a. Recurring Transactions
+
+A **Recurring Transaction Template** stores a transaction prototype plus a recurrence schedule and a submission mode.
+
+**Two submission modes:**
+
+* **Auto-submit** (`AUTO_SUBMIT`): When the scheduled date arrives, the system creates the transaction *and* submits it automatically. It lands in `SUBMITTED` status, awaiting Finance Admin approval. **Approval is never bypassed.**
+* **Draft/Reminder** (`DRAFT`): The system creates a `DRAFT` transaction on the scheduled date. The user must review and submit it manually through the normal workflow.
+
+**Recurrence config:** frequency (`DAILY`/`WEEKLY`/`MONTHLY`), interval (every N periods), `next_run_date`, optional `end_date`, `is_active` flag.
+
+**Generation mechanism:** A cron job (`generate_recurring_transactions`) checks `next_run_date <= today` and generates a transaction from each due template, then advances `next_run_date` by the configured interval.
+
+**Authorization for template creation:**
+
+* **Finance Admin** — can create auto-submit or draft/reminder templates for any department.
+* **Employee** — can create draft/reminder templates only for their own department. Cannot create auto-submit templates.
+* **Department Manager** — can view recurring templates for their department but cannot create them.
+
+**Normal workflow applies:** All generated transactions follow DRAFT → SUBMITTED → APPROVED (or REJECTED). Auto-submit just skips the manual creation+submission step, not the approval gate.
+
+### 12b. In-App Notifications
+
+Notifications are **in-app only** for the MVP — no email or external messaging service.
+
+**Design:**
+
+* A `notifications` table: `id`, `user_id`, `type` (e.g. `PENDING_APPROVAL`, `RECURRING_DRAFT_READY`), `title`, `message`, `related_transaction_id`, `is_read`, `created_at`.
+* When a transaction is submitted, the service layer inserts a notification for all active Finance Admin users.
+* When a recurring draft is generated, the service layer inserts a notification for the template creator.
+* Frontend fetches notifications on page load, shows unread count in a bell icon.
+* Email notifications can be added post-MVP without architectural changes.
+
+### 12c. Transaction Import (CSV/Excel)
+
+**Finance Admin only.** Importing bulk transactions is a sensitive operation. Employees cannot import.
+
+**Design:**
+
+* Imported transactions start as `DRAFT` — each row must be reviewed and submitted through the normal workflow. No auto-submit on import.
+* **Expected columns:** `transaction_date`, `direction`, `amount`, `category_name`, `department_code`, `cash_account_name`, `payment_method_name`, `counterparty_name`, `reference_no`, `description`.
+* Category, department, cash account, and payment method are matched by name/code — the import resolves them to IDs.
+* **Partial success:** Import valid rows, collect errors for invalid rows, return a summary report (e.g. "42 of 50 rows imported, 8 errors: row 3 — unknown category 'Foo', row 7 — amount must be positive").
+* **Row limit: 500 rows per file** for MVP. Larger imports can be split.
+
+### 12d. App Settings
+
+A simple `app_settings` table stores configurable values: `key VARCHAR`, `value TEXT`, `updated_by UUID`, `updated_at TIMESTAMPTZ`. Managed by System Admin through the admin UI — no redeploy needed to change values.
+
+**Attachment threshold settings:**
+
+* `attachment_threshold_enabled` (boolean, default `true`) — master switch. When `false`, attachments are always optional regardless of amount. When `true`, attachments are required for transactions with `amount >= attachment_threshold_amount`.
+* `attachment_threshold_amount` (numeric, default `5,000,000` IDR) — the threshold amount in IDR.
+
+The rule is enforced at submission time (DRAFT/REJECTED → SUBMITTED). If enabled and `amount >= threshold` and no attachments exist, submission is rejected with a message like "Attachments are required for transactions of 5,000,000 IDR or above."
 
 ### 13. Updated Deployment Architecture
 
@@ -743,6 +916,12 @@ supabase migration new create_cashflow_categories
 supabase migration new create_cashflow_transactions
 supabase migration new create_attachments_audit_logs
 supabase migration new create_report_snapshots
+supabase migration new create_app_settings
+supabase migration new create_notifications
+supabase migration new create_recurring_transaction_templates
+supabase migration new create_updated_at_triggers
+supabase migration new enable_rls_policies
+supabase migration new create_approved_cashflow_report_view
 ```
 
 Apply migrations:
@@ -789,6 +968,11 @@ INSERT INTO cash_accounts (
 VALUES
   ('Main Bank Account', 'BANK', 0, CURRENT_DATE, 'IDR'),
   ('Petty Cash', 'CASH', 0, CURRENT_DATE, 'IDR');
+
+INSERT INTO app_settings (key, value)
+VALUES
+  ('attachment_threshold_enabled', 'true'),
+  ('attachment_threshold_amount', '5000000');
 ```
 
 ---
@@ -844,10 +1028,16 @@ apps/api/
       approvals/
       reports/
       files/
+      notifications/
+      recurring/
+      settings/
+      import/
     jobs/
       refresh_report_snapshots.py
       cleanup_old_exports.py
       check_missing_attachments.py
+      generate_recurring_transactions.py
+      monthly_financial_snapshot.py
   requirements.txt
   Dockerfile
 ```
@@ -926,6 +1116,13 @@ Service --> Router: response DTO
 Implement these rules in `transactions/service.py`:
 
 ```text
+Transaction number format:
+  - Format: {DIRECTION}-{YYYYMM}-{SEQ:06d}
+  - Example: INFLOW-202607-000001
+  - SEQ is a zero-padded sequence number, scoped per direction + year-month (resets each month).
+  - Generated by querying MAX(seq) + 1 within the same direction + year-month partition,
+    with a unique constraint to handle race conditions.
+
 Create transaction:
   - Employee can create only for own department.
   - Finance Admin can create for any department.
@@ -934,10 +1131,30 @@ Create transaction:
   - Category must match direction or be BOTH.
   - Initial status is DRAFT.
 
+Edit transaction:
+  - Only DRAFT or REJECTED transactions can be edited.
+  - All transaction fields are editable: transaction_date, direction, amount,
+    cash_account_id, department_id, category_id, payment_method_id,
+    counterparty_name, reference_no, description.
+  - System-managed fields are NOT editable: transaction_no, created_by, created_at,
+    updated_at, status, submitted_at, reviewed_by, reviewed_at, rejection_reason,
+    void_reason.
+  - Editing creates an audit log entry capturing old and new values.
+
+Delete transaction:
+  - Only DRAFT or REJECTED transactions can be hard-deleted.
+  - Only the creator or Finance Admin can delete.
+  - SUBMITTED, APPROVED, and VOIDED transactions cannot be deleted.
+  - Deleting a DRAFT/REJECTED transaction also deletes its attachments (metadata + VPS files)
+    and its audit logs.
+  - A delete action creates a final audit log entry before the deletion happens.
+
 Submit transaction:
   - Only creator or Finance Admin can submit.
   - Required fields must be complete.
-  - Attachment is required if amount >= configured threshold.
+  - Payment method is required for manual entry (service layer validation).
+  - Attachment is required if attachment_threshold_enabled = true
+    AND amount >= attachment_threshold_amount (configured in app_settings).
   - Status changes from DRAFT or REJECTED to SUBMITTED.
 
 Approve transaction:
@@ -955,7 +1172,8 @@ Void transaction:
   - Only Finance Admin can void.
   - Status must be APPROVED.
   - Void reason is required.
-  - Voided transaction is excluded from reports.
+  - Voided transaction is excluded from reports (status is no longer APPROVED,
+    so the balance effect is automatically reversed).
 ```
 
 ---
@@ -1103,11 +1321,19 @@ apps/web/
       departments/
       categories/
       cash-accounts/
+      settings/
+    recurring/
+      page.tsx
+      new/
+        page.tsx
+    import/
+      page.tsx
   components/
     charts/
     forms/
     layout/
     tables/
+    notifications/
   lib/
     api-client.ts
     supabase-browser.ts
@@ -1130,6 +1356,9 @@ Main frontend pages:
 | `/admin/departments`   | Manage departments                   |
 | `/admin/categories`    | Manage categories                    |
 | `/admin/cash-accounts` | Manage cash/bank accounts            |
+| `/admin/settings`     | Manage app settings (attachment threshold) |
+| `/recurring`          | Manage recurring transaction templates  |
+| `/import`             | Import transactions from CSV/Excel      |
 
 Recommended dashboard layout:
 
@@ -1218,6 +1447,7 @@ apps/api/app/jobs/
   refresh_report_snapshots.py
   cleanup_old_exports.py
   check_missing_attachments.py
+  generate_recurring_transactions.py
   monthly_financial_snapshot.py
 
 scripts/
@@ -1231,6 +1461,7 @@ Host cron:
 0 2 * * * docker compose -f /opt/financial-cashflow/deploy/docker-compose.yml exec -T api python -m app.jobs.cleanup_old_exports
 0 3 * * * /opt/financial-cashflow/scripts/backup_uploads.sh
 0 4 * * * docker compose -f /opt/financial-cashflow/deploy/docker-compose.yml exec -T api python -m app.jobs.check_missing_attachments
+0 5 * * * docker compose -f /opt/financial-cashflow/deploy/docker-compose.yml exec -T api python -m app.jobs.generate_recurring_transactions
 30 1 1 * * docker compose -f /opt/financial-cashflow/deploy/docker-compose.yml exec -T api python -m app.jobs.monthly_financial_snapshot
 ```
 
@@ -1330,20 +1561,24 @@ Build in this sequence:
 ```text
 1. Repository and Docker Compose setup
 2. Supabase project setup
-3. Database migrations
+3. Database migrations (including app_settings, notifications, recurring_transaction_templates, triggers, RLS)
 4. Authentication and user profile management
-5. Department, category, cash account, and payment method management
+5. Department, category, cash account, payment method, and app settings management
 6. Transaction create/list/detail flow
 7. Attachment upload/download
-8. Submit transaction flow
+8. Submit transaction flow (with attachment threshold enforcement)
 9. Finance Admin approval/rejection/void flow
-10. Audit logging
-11. Reporting APIs
-12. Dashboard UI with ECharts
-13. Report export to Excel/PDF
-14. Cron jobs
-15. Production deployment
-16. UAT and bug fixing
+10. Transaction deletion (DRAFT/REJECTED only)
+11. Audit logging
+12. Notifications service (in-app)
+13. Reporting APIs (including cash balance calculation)
+14. Dashboard UI with ECharts
+15. Report export to Excel/PDF
+16. Cron jobs (including recurring transaction generation)
+17. Recurring transaction templates CRUD
+18. CSV/Excel import
+19. Production deployment
+20. UAT and bug fixing
 ```
 
 ---
@@ -1361,11 +1596,38 @@ Authentication:
 Transactions:
   - Create draft transaction
   - Submit draft transaction
+  - Resubmit rejected transaction (REJECTED -> SUBMITTED directly)
   - Reject submitted transaction
   - Approve submitted transaction
   - Void approved transaction
   - Prevent editing approved transaction
   - Prevent non-finance user approval
+  - Delete draft transaction
+  - Delete rejected transaction
+  - Prevent deleting submitted/approved/voided transaction
+
+Attachment threshold:
+  - Submit blocked when threshold enabled and amount >= threshold and no attachments
+  - Submit allowed when threshold disabled
+  - Submit allowed when amount < threshold
+
+Recurring transactions:
+  - Finance Admin can create auto-submit template
+  - Employee cannot create auto-submit template
+  - Employee can create draft/reminder template for own department
+  - Department Manager cannot create templates
+  - Generated auto-submit transaction lands in SUBMITTED status
+  - Generated draft transaction lands in DRAFT status
+
+Notifications:
+  - Submitting a transaction creates notifications for Finance Admins
+  - User can fetch and mark notifications as read
+
+Import:
+  - Finance Admin can import CSV
+  - Employee cannot import
+  - Partial success returns error report
+  - Imported transactions start as DRAFT
 
 Reports:
   - Draft transactions excluded
@@ -1375,6 +1637,7 @@ Reports:
   - Approved transactions included
   - Date range filter works
   - Department filter works
+  - Current cash balance is not affected by date range filter
 ```
 
 Frontend tests:
@@ -1383,9 +1646,13 @@ Frontend tests:
 UI:
   - Login redirects correctly
   - Dashboard loads KPI cards
+  - Current cash balance shown (as-of now, not date-range-filtered)
   - Transaction form validation works
   - Finance approval page only visible to Finance Admin
   - Attachment upload handles invalid file types
+  - Notification bell shows unread count
+  - Import page only visible to Finance Admin
+  - Recurring templates page visible based on role
 ```
 
 ---
@@ -1458,7 +1725,10 @@ Completion criteria:
 Deliverables:
 
 * Supabase migrations created.
-* Tables for departments, user profiles, cash accounts, categories, payment methods, transactions, attachments, audit logs, and report snapshots.
+* Tables for departments, user profiles, cash accounts, categories, payment methods, transactions, attachments, audit logs, report snapshots, app_settings, notifications, and recurring_transaction_templates.
+* `updated_at` triggers created.
+* RLS policies enabled on all tables.
+* Approved cashflow report view created.
 * Supabase Auth login configured.
 * FastAPI JWT validation implemented.
 * Role-based access control implemented.
@@ -1468,7 +1738,7 @@ Completion criteria:
 
 * User can log in.
 * FastAPI can identify current user and role.
-* System Admin can manage users, departments, categories, payment methods, and cash accounts.
+* System Admin can manage users, departments, categories, payment methods, cash accounts, and app settings.
 
 ---
 
@@ -1478,12 +1748,14 @@ Completion criteria:
 
 Deliverables:
 
-* Create transaction form.
+* Create transaction form (with auto-generated transaction_no).
 * Transaction list page.
 * Transaction detail page.
 * Transaction filters by date, department, category, status, cash account, and direction.
 * Draft transaction creation.
-* Transaction submission.
+* Edit draft/rejected transactions (all fields editable).
+* Transaction submission (with attachment threshold enforcement from app_settings).
+* Delete draft/rejected transactions (hard delete + cleanup attachments + audit logs).
 * Attachment upload and secure download.
 * Transaction audit logging.
 
@@ -1492,7 +1764,7 @@ Completion criteria:
 * Employee can create and submit cashflow records.
 * Uploaded files are stored on VPS local storage.
 * Attachments are only accessible through authorized FastAPI endpoints.
-* Every transaction create/update/submit action is recorded in audit logs.
+* Every transaction create/edit/delete/submit action is recorded in audit logs.
 
 ---
 
@@ -1508,18 +1780,39 @@ Deliverables:
 * Void approved transaction action with reason.
 * Audit logs for approval, rejection, and voiding.
 * Permission checks for Finance Admin-only actions.
+* Rejected transactions can be edited and resubmitted directly (REJECTED → SUBMITTED).
 
 Completion criteria:
 
 * Finance Admin can approve submitted transactions.
-* Rejected transactions return to editable state.
+* Rejected transactions return to editable state and can be resubmitted directly.
 * Approved transactions cannot be edited directly.
 * Voided transactions are excluded from financial reports.
 * Non-finance users cannot approve, reject, or void transactions.
 
 ---
 
-### Milestone 5: Reporting APIs
+### Milestone 5: Notifications
+
+**Goal:** Implement in-app notifications for pending approvals and recurring draft generation.
+
+Deliverables:
+
+* Notifications table and migration.
+* Notification service triggered when a transaction is submitted (creates notifications for all active Finance Admin users).
+* Notification service triggered when a recurring draft is generated (creates notification for template creator).
+* Notification API endpoints (list, mark as read, unread count).
+* Bell icon in frontend showing unread count.
+
+Completion criteria:
+
+* Submitting a transaction creates notifications for Finance Admin users.
+* Users can view and mark notifications as read.
+* Unread count displays in the bell icon.
+
+---
+
+### Milestone 6: Reporting APIs
 
 **Goal:** Create backend APIs for financial reporting.
 
@@ -1530,7 +1823,7 @@ Deliverables:
 * Monthly trend API.
 * Category breakdown API.
 * Department breakdown API.
-* Cash account balance API.
+* Cash account balance API (with current cash balance calculation: opening_balance + approved INFLOW - approved OUTFLOW).
 * Pending approval count API.
 * Date range and department filters.
 * Report export API for Excel and PDF.
@@ -1538,13 +1831,14 @@ Deliverables:
 Completion criteria:
 
 * Only approved transactions are included in reports.
+* Current cash balance is always as-of-now (not affected by date range filter).
 * Dashboard APIs return correct totals.
 * Exported reports match dashboard figures.
 * Report filters work correctly.
 
 ---
 
-### Milestone 6: BI Dashboard
+### Milestone 7: BI Dashboard
 
 **Goal:** Build the built-in BI dashboard using Apache ECharts.
 
@@ -1559,7 +1853,7 @@ Deliverables:
   * Total inflow
   * Total outflow
   * Net cashflow
-  * Current cash balance
+  * Current cash balance (as-of now, not date-range-filtered)
 * Charts:
 
   * Monthly cashflow trend
@@ -1573,11 +1867,12 @@ Completion criteria:
 * Management users can view financial dashboard.
 * Dashboard is responsive on desktop and mobile browser.
 * Dashboard values match backend reporting APIs.
+* Current cash balance is not affected by date range filter.
 * Users can filter dashboard data without page reload.
 
 ---
 
-### Milestone 7: Cron Jobs and Operational Scripts
+### Milestone 8: Cron Jobs and Operational Scripts
 
 **Goal:** Add scheduled operational tasks.
 
@@ -1587,6 +1882,7 @@ Deliverables:
 * Monthly financial snapshot job.
 * Expired export cleanup job.
 * Missing attachment check job.
+* Recurring transaction generation job.
 * Upload backup script.
 * Cron configuration on VPS.
 
@@ -1596,11 +1892,35 @@ Completion criteria:
 * Upload backups are created daily.
 * Old exports are removed automatically.
 * Monthly snapshots are stored correctly.
+* Recurring transactions are generated from due templates.
 * Cron jobs are idempotent.
 
 ---
 
-### Milestone 8: Production Deployment and UAT
+### Milestone 9: Recurring Transactions & CSV/Excel Import
+
+**Goal:** Add recurring transaction template management and CSV/Excel import functionality.
+
+Deliverables:
+
+* Recurring transaction template CRUD (create, list, detail, edit, deactivate).
+* Auto-submit and draft/reminder submission modes.
+* Authorization: Finance Admin can create any; Employee can create draft/reminder only for own department.
+* CSV/Excel import endpoint and UI (Finance Admin only).
+* Partial success import with error reporting.
+* App settings admin UI (attachment threshold toggle and amount).
+
+Completion criteria:
+
+* Finance Admin can create auto-submit and draft/reminder recurring templates.
+* Employee can create draft/reminder templates for own department only.
+* Generated transactions follow the normal approval workflow.
+* Finance Admin can import CSV/Excel files with partial success reporting.
+* System Admin can configure attachment threshold settings through admin UI.
+
+---
+
+### Milestone 10: Production Deployment and UAT
 
 **Goal:** Deploy the MVP and validate it with business users.
 
@@ -1621,7 +1941,10 @@ Completion criteria:
 * Login works.
 * Transaction submission works.
 * Approval workflow works.
+* Notifications work.
 * Dashboard and reports are accurate.
+* Recurring transactions generate correctly.
+* CSV/Excel import works.
 * Finance team signs off for MVP release.
 
 ---
@@ -1642,6 +1965,10 @@ The system should be evaluated against the original MVP requirements.
 | Dashboard           | Management can view inflow, outflow, net cashflow, and cash balance.    |
 | Reports             | Reports include only approved transactions.                             |
 | Export              | Users can export financial reports to Excel and PDF.                    |
+| Notifications       | Finance Admins receive in-app notifications for pending approvals.      |
+| Recurring           | Recurring templates generate transactions on schedule (auto-submit or draft). |
+| Import              | Finance Admin can import transactions from CSV/Excel with partial success. |
+| App settings        | System Admin can toggle attachment threshold and configure threshold amount. |
 
 ---
 
@@ -1685,8 +2012,12 @@ Checks:
 
 * Employee cannot view other users’ transactions.
 * Department Manager cannot view other departments.
+* Department Manager cannot create, edit, submit, approve, reject, or void transactions.
 * Management cannot create, edit, approve, reject, or void transactions.
 * Finance Admin can access all transaction records.
+* System Admin cannot approve, reject, or void transactions.
+* Employee cannot create auto-submit recurring templates.
+* Employee cannot import transactions from CSV/Excel.
 * Upload folder cannot be accessed directly through public URL.
 * Attachment download requires authentication.
 * Supabase service role key is not exposed to frontend.

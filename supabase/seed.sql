@@ -33,3 +33,8 @@ INSERT INTO cash_accounts (
 VALUES
   ('Main Bank Account', 'BANK', 0, CURRENT_DATE, 'IDR'),
   ('Petty Cash', 'CASH', 0, CURRENT_DATE, 'IDR');
+
+INSERT INTO app_settings (key, value)
+VALUES
+  ('attachment_threshold_enabled', 'true'),
+  ('attachment_threshold_amount', '5000000');

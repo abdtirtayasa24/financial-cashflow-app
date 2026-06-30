@@ -161,6 +161,10 @@ Database rules:
 * Use indexes for report filters.
 * Use `user_profiles` linked to `auth.users`.
 * Do not create a standalone `users` table.
+* Maintain `updated_at` via PostgreSQL triggers (`set_updated_at()` function + `BEFORE UPDATE` triggers per table).
+* Enable RLS on all tables. `user_profiles`: read own only. All other tables: no anon-key access.
+* Include tables for `app_settings`, `notifications`, and `recurring_transaction_templates` in migrations.
+* `payment_method_id` is nullable in the database but required by the application service layer for manual entry.
 
 The agent must preserve this reporting rule:
 
@@ -180,13 +184,17 @@ FastAPI must validate the current user before allowing access to protected APIs.
 
 Role permissions:
 
+Roles are **strictly one-per-user** — no dual roles, no overlapping permissions.
+
 | Role               | Allowed                                                                                 |
 | ------------------ | --------------------------------------------------------------------------------------- |
 | Employee           | Create, edit own draft/rejected transactions, submit own transactions, view own records |
-| Department Manager | View own department transactions                                                        |
-| Finance Admin      | View all records, approve, reject, void, export reports                                 |
-| Management         | View dashboard and reports only                                                         |
-| System Admin       | Manage users, departments, categories, payment methods, and cash accounts               |
+| Department Manager | View own department transactions. **Cannot** create, edit, submit, approve, reject, or void |
+| Finance Admin      | View all records, create transactions for any department, approve, reject, void, export reports |
+| Management         | View dashboard and reports only. **Cannot** create, edit, approve, reject, or void transactions |
+| System Admin       | Manage users, departments, categories, payment methods, cash accounts, and app settings. **Cannot** approve, reject, or void transactions |
+
+If a department head needs to create transactions, they should be assigned the `EMPLOYEE` role, not `DEPARTMENT_MANAGER`.
 
 The agent must enforce authorization in the backend even if frontend routes are hidden.
 
@@ -204,7 +212,7 @@ DRAFT
     -> APPROVED
     -> REJECTED
 REJECTED
-  -> DRAFT
+  -> SUBMITTED  (direct resubmit after editing — no DRAFT intermediate step)
 APPROVED
   -> VOIDED
 ```
@@ -212,14 +220,34 @@ APPROVED
 Rules:
 
 * New transactions start as `DRAFT`.
-* Only `DRAFT` or `REJECTED` transactions can be submitted.
+* `DRAFT` and `REJECTED` are both valid pre-submission states.
+* A rejected transaction can be edited and resubmitted directly to `SUBMITTED` — no need to pass through `DRAFT` first.
 * Only `SUBMITTED` transactions can be approved.
 * Only `SUBMITTED` transactions can be rejected.
 * Only `APPROVED` transactions can be voided.
-* Approved transactions cannot be edited directly.
+* Approved transactions cannot be edited.
 * Voiding requires a reason.
 * Rejection requires a reason.
 * All status changes must create audit logs.
+
+**Transaction number format:** `{DIRECTION}-{YYYYMM}-{SEQ:06d}` (e.g. `INFLOW-202607-000001`).
+
+**Editable fields (DRAFT or REJECTED only):**
+`transaction_date`, `direction`, `amount`, `cash_account_id`, `department_id`, `category_id`, `payment_method_id`, `counterparty_name`, `reference_no`, `description`.
+
+**Not editable** (system-managed): `transaction_no`, `created_by`, `created_at`, `updated_at`, `status`, `submitted_at`, `reviewed_by`, `reviewed_at`, `rejection_reason`, `void_reason`.
+
+**Deletion policy:**
+* `DRAFT` and `REJECTED` transactions can be hard-deleted by the creator or Finance Admin.
+* `SUBMITTED`, `APPROVED`, and `VOIDED` transactions cannot be deleted.
+* Deleting a `DRAFT`/`REJECTED` transaction also deletes its attachments (metadata + VPS files) and its audit logs.
+* A delete action creates a final audit log entry before the deletion happens.
+
+**Attachment threshold:**
+* Configurable via `app_settings` table (keys: `attachment_threshold_enabled` boolean, `attachment_threshold_amount` numeric).
+* When `attachment_threshold_enabled = true` and `amount >= attachment_threshold_amount` and no attachments exist, submission is blocked.
+* When `attachment_threshold_enabled = false`, attachments are always optional.
+* Default: enabled, 5,000,000 IDR.
 
 The agent must not implement direct editing of approved transactions.
 
@@ -289,6 +317,11 @@ Rules:
 * Dashboard filters must include date range.
 * Dashboard should support department and cash account filters.
 * Apache ECharts must be used for charts.
+* **Current cash balance is always as-of now** — not affected by the dashboard's date range filter. It represents actual money available.
+* **Cash balance formula:** `opening_balance + SUM(approved INFLOW base_amount) - SUM(approved OUTFLOW base_amount)`, where only transactions with `status = 'APPROVED'` and `transaction_date >= opening_balance_date` are counted.
+* **VOIDED transactions are excluded** from cash balance (status is no longer APPROVED, so the effect is automatically reversed).
+* The inflow/outflow/net KPIs *are* scoped to the date range filter.
+* Department and category hierarchies are **structural-only** — report filters match on the exact department or category, selecting a parent does NOT include its children. See ADR-0001.
 
 ---
 
@@ -302,6 +335,7 @@ Required jobs:
 refresh_report_snapshots.py
 cleanup_old_exports.py
 check_missing_attachments.py
+generate_recurring_transactions.py
 monthly_financial_snapshot.py
 backup_uploads.sh
 ```
@@ -315,6 +349,73 @@ Rules:
 * Jobs may delete expired exports.
 * Jobs may flag missing attachments.
 * Jobs may back up uploaded files.
+* Jobs may generate transactions from recurring templates (auto-submit creates SUBMITTED, draft/reminder creates DRAFT).
+
+---
+
+### 11a. Recurring Transaction Rules
+
+The agent must implement recurring transaction templates with two submission modes.
+
+**Two submission modes:**
+
+* `AUTO_SUBMIT` — system creates and submits the transaction automatically on the scheduled date. Lands in `SUBMITTED` status, awaiting Finance Admin approval. **Approval is never bypassed.**
+* `DRAFT` — system creates a `DRAFT` transaction. User must review and submit manually.
+
+**Authorization:**
+
+* Finance Admin: can create auto-submit or draft/reminder templates for any department.
+* Employee: can create draft/reminder templates only for own department. Cannot create auto-submit templates.
+* Department Manager: can view templates for their department but cannot create them.
+
+**Recurrence config:** frequency (`DAILY`/`WEEKLY`/`MONTHLY`), interval (every N periods), `next_run_date`, optional `end_date`, `is_active` flag.
+
+**Generation:** A cron job (`generate_recurring_transactions`) checks `next_run_date <= today`, generates a transaction from each due template, then advances `next_run_date`.
+
+**All generated transactions follow the normal workflow:** DRAFT → SUBMITTED → APPROVED (or REJECTED).
+
+---
+
+### 11b. Notification Rules
+
+The agent must implement in-app notifications only (no email for the MVP).
+
+Rules:
+
+* When a transaction is submitted, the service layer inserts a notification for all active Finance Admin users.
+* When a recurring draft is generated, the service layer inserts a notification for the template creator.
+* Frontend fetches notifications on page load, shows unread count in a bell icon.
+* Notifications are stored in a `notifications` table.
+* Email notifications can be added post-MVP without architectural changes.
+
+---
+
+### 11c. CSV/Excel Import Rules
+
+The agent must implement CSV/Excel transaction import for Finance Admin only.
+
+Rules:
+
+* Only Finance Admin can import transactions.
+* Imported transactions start as `DRAFT` — no auto-submit on import.
+* Expected columns: `transaction_date`, `direction`, `amount`, `category_name`, `department_code`, `cash_account_name`, `payment_method_name`, `counterparty_name`, `reference_no`, `description`.
+* Category, department, cash account, and payment method are matched by name/code to resolve IDs.
+* Partial success: import valid rows, collect errors for invalid rows, return a summary report.
+* Row limit: 500 rows per file.
+
+---
+
+### 11d. App Settings Rules
+
+The agent must implement a simple `app_settings` table managed by System Admin.
+
+Rules:
+
+* Settings are stored as key-value pairs in the `app_settings` table.
+* System Admin manages settings through the admin UI — no redeploy needed.
+* Required settings: `attachment_threshold_enabled` (boolean, default `true`), `attachment_threshold_amount` (numeric, default `5,000,000` IDR).
+* When `attachment_threshold_enabled = false`, attachments are always optional.
+* When `attachment_threshold_enabled = true`, attachments are required for `amount >= attachment_threshold_amount` at submission time.
 
 ---
 
@@ -346,7 +447,12 @@ Required pages:
 /admin/departments
 /admin/categories
 /admin/cash-accounts
+/admin/settings
+/recurring
+/import
 ```
+
+The frontend must include a notification bell icon showing unread count.
 
 ---
 
@@ -361,12 +467,23 @@ Minimum backend tests:
 - Inactive user is rejected.
 - Employee cannot view other users’ transactions.
 - Employee cannot approve transactions.
+- Department Manager cannot create, edit, or submit transactions.
+- System Admin cannot approve, reject, or void transactions.
 - Finance Admin can approve submitted transactions.
+- Rejected transaction can be resubmitted directly (REJECTED -> SUBMITTED).
 - Approved transactions cannot be edited.
 - Rejected transactions require a reason.
 - Voided transactions require a reason.
+- Draft/rejected transactions can be deleted by creator or Finance Admin.
+- Submitted/approved/voided transactions cannot be deleted.
+- Attachment threshold blocks submission when enabled and amount >= threshold with no attachments.
 - Reports include only approved transactions.
+- Current cash balance is not affected by date range filter.
 - File download requires permission.
+- Employee cannot create auto-submit recurring templates.
+- Finance Admin can import CSV/Excel.
+- Employee cannot import.
+- Importing creates DRAFT transactions.
 ```
 
 Minimum frontend checks:
@@ -374,9 +491,13 @@ Minimum frontend checks:
 ```text
 - Login page renders.
 - Dashboard page loads.
+- Current cash balance shown (as-of now, not date-range-filtered).
 - Transaction creation form validates required fields.
 - Approval page is restricted to Finance Admin.
 - Attachment upload rejects invalid file types.
+- Notification bell shows unread count.
+- Import page is restricted to Finance Admin.
+- Recurring templates page visible based on role.
 ```
 
 ---
@@ -470,6 +591,13 @@ The AI agent must not:
 * Expose service-role keys to the frontend.
 * Disable audit logging.
 * Include non-approved transactions in official reports.
+* Add multi-currency UI or conversion logic (schema fields are future-proofing only).
+* Bypass Finance Admin approval for auto-submit recurring transactions.
+* Allow Employees to create auto-submit recurring templates.
+* Allow Employees to import CSV/Excel transactions.
+* Send email notifications (MVP is in-app only).
+* Delete SUBMITTED, APPROVED, or VOIDED transactions.
+* Include parent department/category children in report rollup (hierarchies are structural-only).
 
 ---
 
@@ -517,3 +645,17 @@ Remaining TODOs:
 ```
 
 The agent must be explicit about incomplete work and must not claim production readiness unless the deployment, security, and testing criteria are satisfied.
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked as GitHub issues via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five default triage labels: needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout — one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
