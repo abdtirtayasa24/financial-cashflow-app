@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  ReceiptText,
   Settings,
   Tags,
   Users,
@@ -32,6 +33,7 @@ interface NavItem {
 
 const mainNav: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/transactions", label: "Transactions", icon: ReceiptText },
 ];
 
 const adminNav: NavItem[] = [

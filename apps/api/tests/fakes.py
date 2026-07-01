@@ -50,41 +50,88 @@ class FakeQuery:
         self.table = table
         self.op = op
         self.payload = payload
-        self.filters: list[tuple[str, Any]] = []
-        self._order: str | None = None
-        self._desc = False
+        # (column, operator, value) — operator is "eq" | "gte" | "lte" | "in".
+        self.filters: list[tuple[str, str, Any]] = []
+        self._orders: list[tuple[str, bool]] = []
         self._limit: int | None = None
+        self._range: tuple[int, int] | None = None
 
     def select(self, _cols: str = "*") -> "FakeQuery":
         return self
 
     def eq(self, col: str, value: Any) -> "FakeQuery":
-        self.filters.append((col, value))
+        self.filters.append((col, "eq", value))
+        return self
+
+    def neq(self, col: str, value: Any) -> "FakeQuery":
+        self.filters.append((col, "neq", value))
+        return self
+
+    def gte(self, col: str, value: Any) -> "FakeQuery":
+        self.filters.append((col, "gte", value))
+        return self
+
+    def lte(self, col: str, value: Any) -> "FakeQuery":
+        self.filters.append((col, "lte", value))
+        return self
+
+    def in_(self, col: str, value: list[Any]) -> "FakeQuery":
+        self.filters.append((col, "in", value))
         return self
 
     def order(self, col: str, desc: bool = False) -> "FakeQuery":
-        self._order = col
-        self._desc = desc
+        self._orders.append((col, desc))
         return self
 
     def limit(self, n: int) -> "FakeQuery":
         self._limit = n
         return self
 
+    def range(self, start: int, end: int) -> "FakeQuery":
+        self._range = (start, end)
+        return self
+
+    @staticmethod
+    def _cmp_ok(op: str, row_val: Any, value: Any) -> bool:
+        if op == "eq":
+            return row_val == value
+        if op == "neq":
+            return row_val != value
+        if op == "in":
+            return row_val in value
+        if row_val is None:
+            return False
+        try:
+            if op == "gte":
+                return row_val >= value
+            if op == "lte":
+                return row_val <= value
+        except TypeError:
+            return False
+        return False
+
     def _matches(self, row: dict[str, Any]) -> bool:
-        return all(row.get(col) == value for col, value in self.filters)
+        return all(
+            self._cmp_ok(op, row.get(col), value)
+            for col, op, value in self.filters
+        )
 
     def execute(self) -> FakeResponse:
         rows = self.client.tables.setdefault(self.table, [])
         if self.op == "select":
             result = [dict(r) for r in rows if self._matches(r)]
-            if self._order:
+            # Apply each order clause in reverse so the first call dominates
+            # (stable sort keeps prior relative order for equal keys).
+            for col, desc in reversed(self._orders):
                 result.sort(
-                    key=lambda r: str(r.get(self._order) or ""),
-                    reverse=self._desc,
+                    key=lambda r: str(r.get(col) or ""),
+                    reverse=desc,
                 )
             if self._limit is not None:
                 result = result[: self._limit]
+            if self._range is not None:
+                start, end = self._range
+                result = result[start : end + 1]
             return FakeResponse(result)
 
         if self.op == "insert":

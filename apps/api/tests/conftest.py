@@ -1,9 +1,10 @@
 import uuid
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import jwt
 import pytest
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.core.supabase_client import get_supabase_client
 from app.main import app
 from fastapi.testclient import TestClient
@@ -58,10 +59,17 @@ def fake_db() -> FakeClient:
     return FakeClient()
 
 
+@pytest.fixture(scope="session")
+def upload_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    return tmp_path_factory.mktemp("uploads")
+
+
 @pytest.fixture(autouse=True)
-def override_dependencies(fake_db: FakeClient) -> None:
+def override_dependencies(
+    fake_db: FakeClient, upload_tmp: Path
+) -> None:
     app.dependency_overrides[get_supabase_client] = lambda: fake_db
-    app.dependency_overrides[get_settings] = lambda: _test_settings()
+    app.dependency_overrides[get_settings] = lambda: _test_settings(upload_tmp)
     yield
     app.dependency_overrides.clear()
 
@@ -75,7 +83,5 @@ def auth_header(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def _test_settings():
-    from app.core.config import Settings
-
-    return Settings(jwt_secret=TEST_SECRET)
+def _test_settings(upload_dir: Path) -> Settings:
+    return Settings(jwt_secret=TEST_SECRET, upload_dir=str(upload_dir))

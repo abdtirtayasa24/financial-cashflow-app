@@ -116,9 +116,11 @@ Roles are **strictly one-per-user** — no dual roles, no overlapping permission
 | **Department Manager** | View all transactions for own department. **Cannot** create, edit, submit, approve, reject, or void transactions |
 | **Finance Admin** | View all transactions across all departments, create transactions for any department, approve, reject, void, export reports |
 | **Management** | View dashboard and reports only. **Cannot** create, edit, approve, reject, or void transactions |
-| **System Admin** | Manage users, departments, categories, payment methods, cash accounts, and app settings. **Cannot** approve, reject, or void transactions |
+| **System Admin** | Manage users, departments, categories, payment methods, cash accounts, and app settings. Can view all transactions read-only. **Cannot** create, edit, submit, delete, approve, reject, or void transactions |
 
 If a department head needs to create transactions, they should be assigned the `EMPLOYEE` role, not `DEPARTMENT_MANAGER`.
+
+> **System Admin transaction access:** System Admin is granted read-only access to transactions (list and detail) so the role is not 403-blocked when browsing the application and can support troubleshooting. It can never create, edit, submit, delete, approve, reject, or void transactions — those are enforced in the backend service layer.
 
 ### App Settings & Attachment Threshold
 

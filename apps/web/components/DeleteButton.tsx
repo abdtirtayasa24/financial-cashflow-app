@@ -1,6 +1,8 @@
 "use client";
 
-import { type ReactNode, useTransition } from "react";
+import { type ReactNode } from "react";
+
+import { ConfirmButton } from "@/components/ConfirmButton";
 
 interface DeleteButtonProps {
   action: (formData: FormData) => void | Promise<void>;
@@ -9,20 +11,21 @@ interface DeleteButtonProps {
   children?: ReactNode;
 }
 
+/**
+ * Inline two-step confirmation for destructive admin actions.
+ * Delegates to {@link ConfirmButton} so no `window.confirm` is used (DESIGN.md).
+ * Kept as its own export so the existing admin pages need no changes.
+ */
 export function DeleteButton({ action, id, label, children }: DeleteButtonProps) {
-  const [pending, startTransition] = useTransition();
   return (
-    <form
-      action={(formData) => {
-        if (window.confirm(`Delete ${label ?? "this record"}?`)) {
-          startTransition(() => action(formData));
-        }
-      }}
+    <ConfirmButton
+      action={action}
+      id={id}
+      label={label}
+      confirmLabel="Confirm"
+      className="btn-danger btn-sm"
     >
-      <input type="hidden" name="id" value={id} />
-      <button type="submit" className="btn-danger btn-sm" disabled={pending}>
-        {children ?? "Delete"}
-      </button>
-    </form>
+      {children ?? "Delete"}
+    </ConfirmButton>
   );
 }

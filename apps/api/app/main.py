@@ -10,10 +10,12 @@ from app.core.config import get_settings
 from app.core.errors import AppError, app_error_handler
 from app.core.models import CurrentUser
 from app.modules.app_settings.router import router as settings_router
+from app.modules.attachments.router import router as attachments_router
 from app.modules.cash_accounts.router import router as cash_accounts_router
 from app.modules.cashflow_categories.router import router as categories_router
 from app.modules.departments.router import router as departments_router
 from app.modules.payment_methods.router import router as payment_methods_router
+from app.modules.transactions.router import router as transactions_router
 from app.modules.users.router import router as users_router
 
 
@@ -53,6 +55,8 @@ app.include_router(categories_router, prefix=settings.api_prefix)
 app.include_router(payment_methods_router, prefix=settings.api_prefix)
 app.include_router(cash_accounts_router, prefix=settings.api_prefix)
 app.include_router(settings_router, prefix=settings.api_prefix)
+app.include_router(transactions_router, prefix=settings.api_prefix)
+app.include_router(attachments_router, prefix=settings.api_prefix)
 
 
 @app.get(f"{settings.api_prefix}/health", status_code=status.HTTP_200_OK, tags=["Health"])
