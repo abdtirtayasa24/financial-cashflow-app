@@ -7,45 +7,73 @@ export default async function SettingsPage() {
 
   return (
     <div className="container">
-      <h1>App Settings</h1>
-
-      <form action={upsertAppSetting} className="card form-row" aria-label="Upsert setting">
-        <div className="field">
-          <label htmlFor="key">Key</label>
-          <input id="key" name="key" required placeholder="attachment_threshold_amount" />
+      <div className="page-header">
+        <div>
+          <h1>App Settings</h1>
+          <p className="page-header__subtitle">Configure application-wide parameters and thresholds.</p>
         </div>
-        <div className="field">
-          <label htmlFor="value">Value</label>
-          <input id="value" name="value" required placeholder="5000000" />
-        </div>
-        <button type="submit" className="btn-primary">
-          Save setting
-        </button>
-      </form>
+      </div>
 
-      <h2>Current values</h2>
-      {settings.length === 0 ? (
-        <p className="empty">No settings configured.</p>
-      ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Key</th>
-              <th>Value</th>
-              <th>Updated at</th>
-            </tr>
-          </thead>
-          <tbody>
-            {settings.map((s) => (
-              <tr key={s.id}>
-                <td>{s.key}</td>
-                <td>{s.value}</td>
-                <td>{new Date(s.updated_at).toLocaleString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <div className="section">
+        <form action={upsertAppSetting} className="card form-grid" aria-label="Add or update setting">
+          <div className="form-row">
+            <div className="field">
+              <label htmlFor="key">Key</label>
+              <input id="key" name="key" required placeholder="attachment_threshold_amount" />
+            </div>
+            <div className="field">
+              <label htmlFor="value">Value</label>
+              <input id="value" name="value" required placeholder="5000000" />
+            </div>
+          </div>
+          <div className="form-actions">
+            <button type="submit" className="btn-primary">
+              Save setting
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div className="section">
+        <h2 className="section__title">Current values</h2>
+        {settings.length === 0 ? (
+          <div className="empty">
+            <div className="empty__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </div>
+            <div className="empty__title">No settings configured</div>
+            <p className="empty__desc">Add configuration keys to control application behavior.</p>
+          </div>
+        ) : (
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Value</th>
+                  <th>Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {settings.map((s) => (
+                  <tr key={s.id}>
+                    <td className="text-secondary" style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>
+                      {s.key}
+                    </td>
+                    <td style={{ fontWeight: 500 }}>{s.value}</td>
+                    <td className="text-secondary text-sm">
+                      {new Date(s.updated_at).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

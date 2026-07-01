@@ -1,0 +1,249 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2025-07-02T00:00:00Z",
+  "title": "Design System: Financial Cashflow",
+  "extensions": {
+    "colorMeta": {
+      "deep-confident-blue": {
+        "role": "primary",
+        "displayName": "Deep Confident Blue",
+        "canonical": "oklch(0.44 0.13 245)",
+        "tonalRamp": [
+          "oklch(0.15 0.06 245)",
+          "oklch(0.22 0.08 245)",
+          "oklch(0.30 0.10 245)",
+          "oklch(0.37 0.14 245)",
+          "oklch(0.40 0.14 245)",
+          "oklch(0.44 0.13 245)",
+          "oklch(0.50 0.13 245)",
+          "oklch(0.95 0.025 245)"
+        ]
+      },
+      "cool-canvas": {
+        "role": "neutral",
+        "displayName": "Cool Canvas",
+        "canonical": "oklch(0.992 0.002 255)",
+        "tonalRamp": [
+          "oklch(0.15 0.002 255)",
+          "oklch(0.22 0.015 255)",
+          "oklch(0.44 0.012 255)",
+          "oklch(0.52 0.01 255)",
+          "oklch(0.84 0.008 255)",
+          "oklch(0.92 0.005 255)",
+          "oklch(0.965 0.005 255)",
+          "oklch(0.992 0.002 255)"
+        ]
+      },
+      "carbon-ink": {
+        "role": "neutral",
+        "displayName": "Carbon Ink",
+        "canonical": "oklch(0.22 0.015 255)",
+        "tonalRamp": [
+          "oklch(0.12 0.01 255)",
+          "oklch(0.22 0.015 255)",
+          "oklch(0.30 0.012 255)",
+          "oklch(0.38 0.012 255)",
+          "oklch(0.44 0.012 255)",
+          "oklch(0.52 0.01 255)",
+          "oklch(0.60 0.008 255)",
+          "oklch(0.75 0.005 255)"
+        ]
+      },
+      "danger": {
+        "role": "semantic",
+        "displayName": "Danger Red",
+        "canonical": "oklch(0.52 0.19 27)",
+        "tonalRamp": [
+          "oklch(0.20 0.08 27)",
+          "oklch(0.30 0.12 27)",
+          "oklch(0.38 0.15 27)",
+          "oklch(0.45 0.16 27)",
+          "oklch(0.47 0.20 27)",
+          "oklch(0.52 0.19 27)",
+          "oklch(0.70 0.10 27)",
+          "oklch(0.95 0.03 27)"
+        ]
+      },
+      "success": {
+        "role": "semantic",
+        "displayName": "Success Green",
+        "canonical": "oklch(0.52 0.13 150)",
+        "tonalRamp": [
+          "oklch(0.20 0.05 150)",
+          "oklch(0.28 0.08 150)",
+          "oklch(0.35 0.10 150)",
+          "oklch(0.40 0.11 150)",
+          "oklch(0.48 0.12 150)",
+          "oklch(0.52 0.13 150)",
+          "oklch(0.70 0.08 150)",
+          "oklch(0.95 0.025 150)"
+        ]
+      },
+      "warning": {
+        "role": "semantic",
+        "displayName": "Warning Amber",
+        "canonical": "oklch(0.62 0.14 70)",
+        "tonalRamp": [
+          "oklch(0.25 0.06 70)",
+          "oklch(0.35 0.08 70)",
+          "oklch(0.42 0.10 70)",
+          "oklch(0.45 0.12 70)",
+          "oklch(0.52 0.13 70)",
+          "oklch(0.62 0.14 70)",
+          "oklch(0.75 0.08 70)",
+          "oklch(0.95 0.04 70)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "heading-xl": { "displayName": "Heading XL", "purpose": "Page titles. One per page." },
+      "heading-lg": { "displayName": "Heading LG", "purpose": "Section titles, login card title." },
+      "heading-md": { "displayName": "Heading MD", "purpose": "Subsection titles, brand name." },
+      "body": { "displayName": "Body", "purpose": "Default body text and form inputs." },
+      "body-sm": { "displayName": "Body SM", "purpose": "Secondary text, table data, nav items." },
+      "label": { "displayName": "Label", "purpose": "Form labels, button text, primary table data." },
+      "caption": { "displayName": "Caption", "purpose": "Table headers (uppercase), sidebar nav labels, timestamps." },
+      "mono": { "displayName": "Mono", "purpose": "Settings keys, code-like data." }
+    },
+    "shadows": [
+      { "name": "ambient-xs", "value": "0 1px 2px 0 rgb(0 0 0 / 0.04)", "purpose": "Subtle resting depth for elements needing faint separation." },
+      { "name": "ambient-sm", "value": "0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px 0 rgb(0 0 0 / 0.04)", "purpose": "Default card elevation at rest." },
+      { "name": "ambient-md", "value": "0 4px 12px -2px rgb(0 0 0 / 0.08), 0 2px 6px -2px rgb(0 0 0 / 0.05)", "purpose": "Login card, elevated panels that lift from the page." },
+      { "name": "ambient-lg", "value": "0 12px 32px -4px rgb(0 0 0 / 0.12), 0 4px 12px -2px rgb(0 0 0 / 0.06)", "purpose": "Mobile sidebar shadow only." }
+    ],
+    "motion": [
+      { "name": "duration-fast", "value": "120ms", "purpose": "Quick state transitions (hover, focus color changes)." },
+      { "name": "duration-normal", "value": "180ms", "purpose": "Default transitions (sidebar slide, backdrop fade)." },
+      { "name": "duration-slow", "value": "240ms", "purpose": "Larger element transitions." },
+      { "name": "ease-out", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Primary easing — ease-out-quart for all state transitions." },
+      { "name": "ease-in-out", "value": "cubic-bezier(0.65, 0, 0.35, 1)", "purpose": "Symmetric transitions (sidebar open/close)." },
+      { "name": "skeleton-shimmer", "value": "shimmer 1.5s infinite linear", "purpose": "Loading skeleton animation. Disabled under reduced motion." }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "0px", "description": "Single column, sidebar collapsed, hamburger menu." },
+      { "name": "tablet", "value": "768px", "description": "Sidebar visible, multi-column forms available." },
+      { "name": "small-phone", "value": "480px", "description": "Login card becomes borderless full-width." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary action button — submit, create, save.",
+      "html": "<button class=\"ds-btn-primary\">Add department</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font: inherit; font-size: 14px; font-weight: 500; padding: 8px 16px; border-radius: 6px; border: 1px solid #4f5390; background: #4f5390; color: #f6fcff; cursor: pointer; min-height: 38px; white-space: nowrap; transition: background 120ms cubic-bezier(0.16,1,0.3,1), border-color 120ms cubic-bezier(0.16,1,0.3,1); } .ds-btn-primary:hover { background: #464887; border-color: #464887; } .ds-btn-primary:active { background: #3f407e; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(79,83,144,0.15); } .ds-btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Destructive action — delete, remove.",
+      "html": "<button class=\"ds-btn-danger ds-btn-sm\">Delete</button>",
+      "css": ".ds-btn-danger { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font: inherit; font-size: 14px; font-weight: 500; padding: 8px 16px; border-radius: 6px; border: 1px solid oklch(0.80 0.03 27); background: #f7fcff; color: #69502c; cursor: pointer; min-height: 38px; transition: background 120ms cubic-bezier(0.16,1,0.3,1), border-color 120ms cubic-bezier(0.16,1,0.3,1), color 120ms cubic-bezier(0.16,1,0.3,1); } .ds-btn-danger:hover { background: #826235; color: #f6fcff; border-color: #826235; } .ds-btn-danger:active { background: #755422; } .ds-btn-danger:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(79,83,144,0.15); } .ds-btn-sm { padding: 4px 12px; font-size: 12px; min-height: 30px; border-radius: 4px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary action — deactivate, cancel.",
+      "html": "<button class=\"ds-btn-ghost ds-btn-sm\">Deactivate</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font: inherit; font-size: 14px; font-weight: 500; padding: 8px 16px; border-radius: 6px; border: 1px solid #c6cad8; background: transparent; color: #50525c; cursor: pointer; min-height: 38px; transition: background 120ms cubic-bezier(0.16,1,0.3,1), color 120ms cubic-bezier(0.16,1,0.3,1), border-color 120ms cubic-bezier(0.16,1,0.3,1); } .ds-btn-ghost:hover { background: #e9eefd; color: #191b22; } .ds-btn-ghost:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(79,83,144,0.15); } .ds-btn-sm { padding: 4px 12px; font-size: 12px; min-height: 30px; border-radius: 4px; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "Standard form input with label and focus state.",
+      "html": "<div class=\"ds-field\"><label for=\"name\" class=\"ds-label\">Name</label><input id=\"name\" class=\"ds-input\" type=\"text\" placeholder=\"Operations\" /></div>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 8px; } .ds-label { font-size: 14px; font-weight: 500; color: #191b22; } .ds-input { font: inherit; font-size: 14px; padding: 8px 12px; border: 1px solid #c6cad8; border-radius: 6px; background: #f7fcff; color: #191b22; width: 100%; min-height: 38px; transition: border-color 120ms cubic-bezier(0.16,1,0.3,1), box-shadow 120ms cubic-bezier(0.16,1,0.3,1); } .ds-input::placeholder { color: #666973; } .ds-input:hover { border-color: oklch(0.78 0.01 255); } .ds-input:focus { outline: none; border-color: #4f5390; box-shadow: 0 0 0 3px rgba(79,83,144,0.12); }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Form container or data section panel.",
+      "html": "<div class=\"ds-card\"><p style=\"font-size:14px;color:#50525c;margin:0\">Card content goes here.</p></div>",
+      "css": ".ds-card { background: #f1f7ff; border: 1px solid #dfe4f2; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px 0 rgba(0,0,0,0.04); }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge-active",
+      "description": "Semantic status indicator with dot and text label.",
+      "html": "<span class=\"ds-badge ds-badge-active\"><span class=\"ds-badge-dot\"></span>Active</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 9999px; font-size: 12px; font-weight: 500; line-height: 1.4; } .ds-badge-dot { width: 6px; height: 6px; border-radius: 9999px; background: currentColor; opacity: 0.7; } .ds-badge-active { background: #e5eff3; color: #374b33; } .ds-badge-inactive { background: #eeedf0; color: #69502c; } .ds-badge-pending { background: #ebeee2; color: #5c530e; } .ds-badge-draft { background: #e7efff; color: #484e7b; }"
+    },
+    {
+      "name": "Sidebar Navigation",
+      "kind": "nav",
+      "refersTo": "sidebar-link",
+      "description": "Left sidebar nav link with icon, active state, and hover.",
+      "html": "<a class=\"ds-nav-link ds-nav-link-active\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/></svg>Dashboard</a>",
+      "css": ".ds-nav-link { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 6px; font-size: 14px; font-weight: 500; color: #50525c; text-decoration: none; min-height: 36px; transition: background 120ms cubic-bezier(0.16,1,0.3,1), color 120ms cubic-bezier(0.16,1,0.3,1); } .ds-nav-link svg { opacity: 0.7; flex-shrink: 0; } .ds-nav-link:hover { background: #e9eefd; color: #191b22; text-decoration: none; } .ds-nav-link:focus-visible { outline: 2px solid #5f64a3; outline-offset: -1px; } .ds-nav-link-active { background: #e7efff; color: #404378; font-weight: 600; } .ds-nav-link-active svg { opacity: 1; } .ds-nav-link-active:hover { background: #e0e8ff; color: #404378; }"
+    },
+    {
+      "name": "Data Table",
+      "kind": "card",
+      "refersTo": "table-wrap",
+      "description": "Wrapped table with sticky headers, hover rows, and tabular numbers.",
+      "html": "<div class=\"ds-table-wrap\"><table class=\"ds-table\"><thead><tr><th>Name</th><th>Status</th></tr></thead><tbody><tr><td>Operations</td><td><span class=\"ds-badge ds-badge-active\"><span class=\"ds-badge-dot\"></span>Active</span></td></tr></tbody></table></div>",
+      "css": ".ds-table-wrap { overflow-x: auto; border: 1px solid #dfe4f2; border-radius: 8px; background: #f1f7ff; } .ds-table { width: 100%; border-collapse: collapse; font-size: 14px; } .ds-table th { text-align: left; padding: 12px 16px; font-weight: 500; font-size: 12px; color: #666973; letter-spacing: 0.02em; text-transform: uppercase; background: #eef3ff; border-bottom: 1px solid #dfe4f2; position: sticky; top: 0; white-space: nowrap; } .ds-table td { text-align: left; padding: 12px 16px; border-bottom: 1px solid #dfe4f2; white-space: nowrap; } .ds-table tbody tr { transition: background 120ms cubic-bezier(0.16,1,0.3,1); } .ds-table tbody tr:last-child { border-bottom: none; } .ds-table tbody tr:hover { background: #e9eefd; } .ds-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 9999px; font-size: 12px; font-weight: 500; } .ds-badge-dot { width: 6px; height: 6px; border-radius: 9999px; background: currentColor; opacity: 0.7; } .ds-badge-active { background: #e5eff3; color: #374b33; }"
+    },
+    {
+      "name": "Empty State",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Teaching empty state with contextual icon, title, and description.",
+      "html": "<div class=\"ds-empty\"><div class=\"ds-empty-icon\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 3v18h18\"/><path d=\"M7 14l4-4 4 4 5-5\"/></svg></div><div class=\"ds-empty-title\">Dashboard coming soon</div><p class=\"ds-empty-desc\">The BI dashboard with KPIs, charts, and filters will be available once transaction data is flowing.</p></div>",
+      "css": ".ds-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 48px 24px; text-align: center; } .ds-empty-icon { width: 48px; height: 48px; border-radius: 9999px; background: #eef3ff; display: flex; align-items: center; justify-content: center; color: #666973; } .ds-empty-title { font-size: 14px; font-weight: 600; color: #191b22; } .ds-empty-desc { font-size: 14px; color: #50525c; max-width: 32ch; margin: 0; line-height: 1.5; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Precision Instrument",
+    "overview": "This is the design system for a financial cashflow recording and BI reporting application used daily by Finance Admins, Department Managers, and Management. The interface should feel like a well-calibrated instrument — every detail deliberate, every pixel earning its place. Confidence comes from clarity, not decoration.\n\nThe system is restrained by design. One accent color (Deep Confident Blue) carries primary actions and active states across the entire interface; everything else is cool neutral. Tactile and confident components respond to interaction with ambient shadow elevation and precise state transitions. Typography is a single well-tuned sans (Inter) at a fixed rem scale — no fluid sizing, no display fonts, no decorative pairings. The hierarchy is built from weight, size, and space alone.\n\nThis system explicitly rejects: generic SaaS dashboard templates (card grids, hero-metric templates, default blue-on-white scaffolds); purple-ish AI slop (violet gradients, glassmorphism, aurora backgrounds, gradient text); generic AI-generated design (identical card grids, uppercase tracked eyebrows on every section, numbered section markers, decorative motion); and consumer-playful aesthetics (cartoonish rounding, playful copy, decorative color).",
+    "keyCharacteristics": [
+      "Restrained color strategy: one accent ≤10% of any screen, cool neutrals everywhere else",
+      "Fixed rem type scale (1.125–1.2 ratio) with tabular numbers for financial data",
+      "Ambient shadow elevation — surfaces carry gentle depth at rest",
+      "Tactile and confident components with full state vocabulary (hover, focus, active, disabled, loading)",
+      "Structural responsive behavior — sidebar collapses, tables scroll, not fluid typography",
+      "WCAG 2.1 AA throughout — all text ≥4.5:1, touch targets ≥40px, reduced motion supported",
+      "Semantic z-index scale (sticky 100 → overlay 150 → sidebar 200 → modal 500 → toast 600)"
+    ],
+    "rules": [
+      { "name": "The One Voice Rule", "body": "Deep Confident Blue is the only accent. It appears on ≤10% of any screen — primary buttons, active nav, focus rings, links. Its rarity is the point. When everything is accented, nothing is.", "section": "colors" },
+      { "name": "The No-Color-Only Rule", "body": "Every status indicator pairs color with text and a dot. A green badge says 'Active' with a dot — never just a green swatch. Color supports meaning; text carries it.", "section": "colors" },
+      { "name": "The Fixed Scale Rule", "body": "No clamp(), no fluid sizing. Product UI needs spatial predictability — a heading in a sidebar must not shrink because the viewport is narrow. The type scale is fixed rem; responsive behavior is structural (layout changes), not typographic.", "section": "typography" },
+      { "name": "The Tabular Numbers Rule", "body": "All financial figures — amounts, balances, codes — use font-variant-numeric: tabular-nums (via .tnum class). Numbers align in columns; digits don't dance.", "section": "typography" },
+      { "name": "The Ambient Rule", "body": "Shadows are part of the resting state, not a reaction. A card at rest has shadow-sm; it doesn't need to 'lift' on hover to prove it's interactive. Hover changes the background tone, not the shadow.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use Deep Confident Blue (#4f5390) exclusively for primary actions, active states, and focus rings. Its scarcity is its power.",
+      "Do use tabular numbers (.tnum) for all financial figures, amounts, and codes. Numbers must align in columns.",
+      "Do pair every status color with a text label and a dot. 'Active' with a green dot — never a green swatch alone.",
+      "Do build responsive behavior structurally — collapse the sidebar, scroll tables horizontally, stack form rows. Not fluid typography.",
+      "Do use the fixed rem type scale (12/14/16/18/20/24px). No clamp(), no fluid sizing. Product UI needs spatial predictability.",
+      "Do include full state coverage on every interactive component: default, hover, focus-visible, active, disabled. Half the states is half the component.",
+      "Do use teaching empty states that explain what to do next, not just what's missing.",
+      "Do use ambient shadows at rest. Cards don't need to 'lift' on hover to prove they're interactive.",
+      "Do verify contrast at ≥4.5:1 for all text against its actual background surface."
+    ],
+    "donts": [
+      "Don't use border-left or border-right greater than 1px as a colored accent stripe. Full borders, background tints, or nothing.",
+      "Don't use gradient text (background-clip: text + gradient). Solid color only. Emphasis via weight or size.",
+      "Don't use glassmorphism — blurs and glass cards as decoration. Rare and purposeful, or nothing.",
+      "Don't build the hero-metric template (big number, small label, supporting stats, gradient accent). It's a SaaS cliché.",
+      "Don't use identical card grids with icon + heading + text repeated endlessly. Vary the structure to match the content.",
+      "Don't put tiny uppercase tracked eyebrows above every section.",
+      "Don't use numbered section markers (01 / 02 / 03) as default scaffolding.",
+      "Don't use purple/violet gradient accents, aurora backgrounds, or any 'purple-ish AI slop' aesthetic.",
+      "Don't use warm cream, sand, or beige body backgrounds. The neutrals are cool-tinted toward the accent hue, never toward warmth.",
+      "Don't introduce a second accent color. One voice, one accent.",
+      "Don't animate layout properties (width, height, top, left). Use transform and opacity for motion.",
+      "Don't ship any animation without a prefers-reduced-motion alternative.",
+      "Don't use window.confirm for destructive actions in production — use inline confirmation or a proper dialog.",
+      "Don't create nested cards. A card inside a card is always wrong."
+    ]
+  }
+}
