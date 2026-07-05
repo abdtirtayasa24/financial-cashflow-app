@@ -164,6 +164,49 @@ export interface UnreadCount {
   count: number;
 }
 
+export interface ReportSummary {
+  totalInflow: number;
+  totalOutflow: number;
+  netCashflow: number;
+  currency: string;
+}
+
+export interface MonthlyTrendPoint {
+  month: string;
+  inflow: number;
+  outflow: number;
+  net: number;
+}
+
+export interface CategoryBreakdownPoint {
+  category_id: string;
+  category_name: string;
+  direction: TransactionDirection;
+  amount: number;
+}
+
+export interface DepartmentBreakdownPoint {
+  department_id: string;
+  department_name: string;
+  inflow: number;
+  outflow: number;
+  net: number;
+}
+
+export interface CashAccountBalancePoint {
+  cash_account_id: string;
+  cash_account_name: string;
+  currency: string;
+  opening_balance: number;
+  inflow: number;
+  outflow: number;
+  current_balance: number;
+}
+
+export interface PendingApprovalsCount {
+  count: number;
+}
+
 export const STATUS_LABELS: Record<TransactionStatus, string> = {
   DRAFT: "Draft",
   SUBMITTED: "Submitted",

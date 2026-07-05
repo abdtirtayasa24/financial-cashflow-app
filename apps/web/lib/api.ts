@@ -2,6 +2,26 @@ import { getAccessToken } from "@/lib/supabase-server";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly statusText: string,
+    public readonly detail: string
+  ) {
+    super(detail || `API ${status} ${statusText}`);
+    this.name = "ApiError";
+  }
+}
+
+export function isApiError(error: unknown): error is ApiError {
+  return error instanceof ApiError;
+}
+
+async function apiError(res: Response): Promise<ApiError> {
+  const detail = await res.text().catch(() => "");
+  return new ApiError(res.status, res.statusText, detail);
+}
+
 async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const token = await getAccessToken();
   const headers = new Headers(init?.headers);
@@ -22,7 +42,7 @@ async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
 export async function apiGet<T>(path: string): Promise<T> {
   const res = await apiFetch(path);
   if (!res.ok) {
-    throw new Error(`API ${res.status} ${res.statusText}`);
+    throw await apiError(res);
   }
   return (await res.json()) as T;
 }
@@ -37,8 +57,7 @@ export async function apiSend<T>(
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {
-    const detail = await res.text().catch(() => res.statusText);
-    throw new Error(detail || `API ${res.status}`);
+    throw await apiError(res);
   }
   if (res.status === 204) {
     return undefined as T;
@@ -60,8 +79,7 @@ export async function apiUpload<T>(path: string, formData: FormData): Promise<T>
     cache: "no-store",
   });
   if (!res.ok) {
-    const detail = await res.text().catch(() => res.statusText);
-    throw new Error(detail || `API ${res.status}`);
+    throw await apiError(res);
   }
   if (res.status === 204) {
     return undefined as T;
