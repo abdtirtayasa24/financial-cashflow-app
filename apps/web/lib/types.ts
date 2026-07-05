@@ -147,6 +147,23 @@ export interface AuditLog {
   created_at: string;
 }
 
+export type NotificationType = "PENDING_APPROVAL" | "RECURRING_DRAFT_READY";
+
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  related_transaction_id: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface UnreadCount {
+  count: number;
+}
+
 export const STATUS_LABELS: Record<TransactionStatus, string> = {
   DRAFT: "Draft",
   SUBMITTED: "Submitted",

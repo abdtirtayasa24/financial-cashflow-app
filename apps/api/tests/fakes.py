@@ -9,7 +9,7 @@ from typing import Any
 
 
 class FakeResponse:
-    def __init__(self, data: list[dict[str, Any]]) -> None:
+    def __init__(self, data: Any) -> None:
         self.data = data
 
 
@@ -135,6 +135,8 @@ class FakeQuery:
             return FakeResponse(result)
 
         if self.op == "insert":
+            if self.table in self.client.fail_insert_tables:
+                raise RuntimeError(f"insert failed for {self.table}")
             items = self.payload if isinstance(self.payload, list) else [self.payload]
             out: list[dict[str, Any]] = []
             for item in items:
@@ -182,14 +184,38 @@ class FakeTable:
         return FakeQuery(self.client, self.table, "delete")
 
 
+class FakeRpcQuery:
+    def __init__(self, client: "FakeClient", fn: str, params: dict[str, Any]) -> None:
+        self.client = client
+        self.fn = fn
+        self.params = params
+
+    def execute(self) -> FakeResponse:
+        self.client.rpc_calls.append((self.fn, dict(self.params)))
+        if self.fn == "notification_unread_count":
+            user_id = self.params["p_user_id"]
+            count = sum(
+                1
+                for row in self.client.tables.setdefault("notifications", [])
+                if row.get("user_id") == user_id and row.get("is_read") is False
+            )
+            return FakeResponse(count)
+        raise AssertionError(f"unknown rpc {self.fn}")
+
+
 class FakeClient:
     def __init__(self) -> None:
         self.tables: dict[str, list[dict[str, Any]]] = {}
         self.auth_users: dict[str, dict[str, Any]] = {}
+        self.fail_insert_tables: set[str] = set()
+        self.rpc_calls: list[tuple[str, dict[str, Any]]] = []
         self.auth = FakeAuth(self)
 
     def table(self, name: str) -> FakeTable:
         return FakeTable(self, name)
+
+    def rpc(self, fn: str, params: dict[str, Any]) -> FakeRpcQuery:
+        return FakeRpcQuery(self, fn, params)
 
     def seed(self, table: str, rows: list[dict[str, Any]]) -> None:
         self.tables.setdefault(table, []).extend(rows)

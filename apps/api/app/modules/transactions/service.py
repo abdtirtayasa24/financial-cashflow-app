@@ -1,3 +1,4 @@
+from contextlib import suppress
 from typing import Any, NoReturn
 
 from supabase import Client
@@ -8,6 +9,7 @@ from app.core.models import CurrentUser, Role
 from app.modules.app_settings.repository import AppSettingRepository
 from app.modules.attachments import storage
 from app.modules.attachments.repository import AttachmentRepository
+from app.modules.notifications.service import NotificationService
 from app.modules.transactions.repository import Rows, TransactionRepository
 from app.modules.transactions.schemas import (
     TransactionCreate,
@@ -330,6 +332,10 @@ class TransactionService:
             old_value={"status": tx["status"]},
             new_value=new_value,
         )
+        # Notifications are best-effort after the financial status change
+        # and mandatory audit log are persisted.
+        with suppress(Exception):
+            NotificationService(self.db).notify_pending_approval(row)
         return TransactionOut(**row)
 
     def approve(self, transaction_id: str, user: CurrentUser) -> TransactionOut:

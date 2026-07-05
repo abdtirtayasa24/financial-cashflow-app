@@ -315,3 +315,16 @@ export async function deleteAttachment(formData: FormData): Promise<void> {
   );
   revalidatePath(`/transactions/${id}`);
 }
+
+// --- Notifications ---
+export async function markNotificationRead(formData: FormData): Promise<void> {
+  await apiSend(`/api/notifications/${str(formData, "id")}/read`, "POST");
+  revalidatePath("/", "layout");
+  revalidatePath("/notifications");
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  await apiSend("/api/notifications/read-all", "POST");
+  revalidatePath("/", "layout");
+  revalidatePath("/notifications");
+}

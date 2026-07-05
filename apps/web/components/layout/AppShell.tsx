@@ -18,11 +18,18 @@ import {
   Wallet,
 } from "lucide-react";
 
-import { signOut } from "@/app/actions";
-import type { CurrentUser } from "@/lib/types";
+import {
+  markAllNotificationsRead,
+  markNotificationRead,
+  signOut,
+} from "@/app/actions";
+import { formatDateTime } from "@/lib/format";
+import type { AppNotification, CurrentUser } from "@/lib/types";
 
 interface AppShellProps {
   user: CurrentUser | null;
+  notifications: AppNotification[];
+  unreadCount: number;
   children: ReactNode;
 }
 
@@ -70,9 +77,15 @@ function formatRole(role: string): string {
     .join(" ");
 }
 
-export function AppShell({ user, children }: AppShellProps) {
+export function AppShell({
+  user,
+  notifications,
+  unreadCount,
+  children,
+}: AppShellProps) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const isAdmin = user?.role === "SYSTEM_ADMIN";
   const isFinanceAdmin = user?.role === "FINANCE_ADMIN";
 
@@ -205,14 +218,92 @@ export function AppShell({ user, children }: AppShellProps) {
             </button>
           </div>
           <div className="topbar__right">
-            <button
-              type="button"
-              className="topbar__icon-btn"
-              aria-label="Notifications"
-              title="Notifications"
-            >
-              <Bell size={22} />
-            </button>
+            <div className="notifications-menu">
+              <button
+                type="button"
+                className="topbar__icon-btn"
+                aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
+                title="Notifications"
+                aria-expanded={notificationsOpen}
+                aria-controls="notifications-panel"
+                onClick={() => setNotificationsOpen((open) => !open)}
+              >
+                <Bell size={22} />
+                {unreadCount > 0 ? (
+                  <span className="topbar__badge" aria-hidden="true">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                ) : null}
+              </button>
+
+              {notificationsOpen ? (
+                <div
+                  id="notifications-panel"
+                  className="notifications-panel"
+                  role="dialog"
+                  aria-label="Notifications"
+                >
+                  <div className="notifications-panel__header">
+                    <div>
+                      <div className="notifications-panel__title">Notifications</div>
+                      <div className="notifications-panel__meta">
+                        {unreadCount} unread
+                      </div>
+                    </div>
+                    {unreadCount > 0 ? (
+                      <form action={markAllNotificationsRead}>
+                        <button type="submit" className="btn-ghost btn-sm">
+                          Mark all read
+                        </button>
+                      </form>
+                    ) : null}
+                  </div>
+
+                  {notifications.length === 0 ? (
+                    <p className="notifications-panel__empty">
+                      No notifications yet.
+                    </p>
+                  ) : (
+                    <ul className="notifications-list" role="list">
+                      {notifications.map((notification) => (
+                        <li
+                          key={notification.id}
+                          className={`notifications-list__item ${
+                            notification.is_read ? "" : "notifications-list__item--unread"
+                          }`}
+                        >
+                          <div className="notifications-list__content">
+                            <div className="notifications-list__title">
+                              {notification.title}
+                            </div>
+                            <p>{notification.message}</p>
+                            <time dateTime={notification.created_at}>
+                              {formatDateTime(notification.created_at)}
+                            </time>
+                          </div>
+                          {!notification.is_read ? (
+                            <form action={markNotificationRead}>
+                              <input type="hidden" name="id" value={notification.id} />
+                              <button type="submit" className="btn-ghost btn-sm">
+                                Mark read
+                              </button>
+                            </form>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <Link
+                    href="/notifications"
+                    className="notifications-panel__view-all"
+                    onClick={() => setNotificationsOpen(false)}
+                  >
+                    View all notifications
+                  </Link>
+                </div>
+              ) : null}
+            </div>
           </div>
         </header>
 
