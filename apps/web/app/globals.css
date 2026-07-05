@@ -1220,6 +1220,31 @@ button:focus-visible {
   gap: var(--space-2);
 }
 
+.approval-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.review-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: min(260px, 100%);
+}
+
+.review-form textarea {
+  min-height: 72px;
+}
+
+.review-form__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
 /* ── Detail definition list ────────────────────────────────── */
 .detail {
   display: grid;

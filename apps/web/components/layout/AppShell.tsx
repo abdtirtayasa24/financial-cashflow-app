@@ -6,6 +6,7 @@ import { useState, type ReactNode } from "react";
 import {
   Bell,
   Building2,
+  ClipboardCheck,
   CreditCard,
   LayoutDashboard,
   LogOut,
@@ -34,6 +35,10 @@ interface NavItem {
 const mainNav: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/transactions", label: "Transactions", icon: ReceiptText },
+];
+
+const financeNav: NavItem[] = [
+  { href: "/approvals", label: "Approvals", icon: ClipboardCheck },
 ];
 
 const adminNav: NavItem[] = [
@@ -69,6 +74,7 @@ export function AppShell({ user, children }: AppShellProps) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isAdmin = user?.role === "SYSTEM_ADMIN";
+  const isFinanceAdmin = user?.role === "FINANCE_ADMIN";
 
   const closeSidebar = () => setSidebarOpen(false);
 
@@ -119,6 +125,27 @@ export function AppShell({ user, children }: AppShellProps) {
               );
             })}
           </div>
+
+          {isFinanceAdmin ? (
+            <div className="sidebar__nav-group">
+              {financeNav.map((item) => {
+                const Icon = item.icon;
+                const active = isActive(pathname, item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`sidebar__link ${active ? "sidebar__link--active" : ""}`}
+                    onClick={closeSidebar}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    <Icon size={18} />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          ) : null}
 
           {isAdmin ? (
             <div className="sidebar__nav-group">

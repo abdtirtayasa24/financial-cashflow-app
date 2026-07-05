@@ -430,6 +430,281 @@ def test_threshold_below_amount_does_not_block(
     assert resp.status_code == 200
 
 
+# ── finance approval workflow ──────────────────────────────────
+
+
+def test_finance_admin_approves_submitted_transaction(
+    client: TestClient, fake_db: FakeClient
+) -> None:
+    fin_id = seed_user(fake_db, "FINANCE_ADMIN")
+    tx_id = seed_transaction(fake_db, created_by=fin_id, status="SUBMITTED")
+    resp = client.post(
+        f"/api/transactions/{tx_id}/approve", headers=auth_header(make_token(fin_id))
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["status"] == "APPROVED"
+    assert body["reviewed_by"] == fin_id
+    assert body["reviewed_at"] is not None
+    logs = [lg for lg in fake_db.tables["transaction_audit_logs"]
+            if lg["action"] == "APPROVE"]
+    assert logs
+    assert logs[-1]["actor_user_id"] == fin_id
+    assert logs[-1]["old_value"] == {"status": "SUBMITTED"}
+    assert logs[-1]["new_value"]["status"] == "APPROVED"
+    assert logs[-1]["new_value"]["reviewed_by"] == fin_id
+
+
+def test_approve_requires_submitted_status(
+    client: TestClient, fake_db: FakeClient
+) -> None:
+    fin_id = seed_user(fake_db, "FINANCE_ADMIN")
+    tx_id = seed_transaction(fake_db, created_by=fin_id, status="DRAFT")
+    resp = client.post(
+        f"/api/transactions/{tx_id}/approve", headers=auth_header(make_token(fin_id))
+    )
+    assert resp.status_code == 409
+
+
+def test_approve_second_call_conflicts_without_duplicate_audit(
+    client: TestClient, fake_db: FakeClient
+) -> None:
+    fin_id = seed_user(fake_db, "FINANCE_ADMIN")
+    token = auth_header(make_token(fin_id))
+    tx_id = seed_transaction(fake_db, created_by=fin_id, status="SUBMITTED")
+    first = client.post(f"/api/transactions/{tx_id}/approve", headers=token)
+    assert first.status_code == 200
+    resp = client.post(f"/api/transactions/{tx_id}/approve", headers=token)
+    assert resp.status_code == 409
+    logs = [lg for lg in fake_db.tables["transaction_audit_logs"]
+            if lg["action"] == "APPROVE"]
+    assert len(logs) == 1
+
+
+def test_non_finance_users_cannot_approve(
+    client: TestClient, fake_db: FakeClient
+) -> None:
+    creator_id = seed_user(fake_db, "FINANCE_ADMIN", email="creator@x.com")
+    tx_id = seed_transaction(fake_db, created_by=creator_id, status="SUBMITTED")
+    roles = [
+        ("EMPLOYEE", DEPT_OWN),
+        ("DEPARTMENT_MANAGER", DEPT_OWN),
+        ("MANAGEMENT", None),
+        ("SYSTEM_ADMIN", None),
+    ]
+    for i, (role, department_id) in enumerate(roles):
+        user_id = seed_user(
+            fake_db, role, department_id=department_id,
+            email=f"role-{i}@x.com", full_name=f"Role {i}",
+        )
+        resp = client.post(
+            f"/api/transactions/{tx_id}/approve",
+            headers=auth_header(make_token(user_id)),
+        )
+        assert resp.status_code == 403
+
+
+def test_finance_admin_rejects_submitted_transaction_with_reason(
+    client: TestClient, fake_db: FakeClient
+) -> None:
+    fin_id = seed_user(fake_db, "FINANCE_ADMIN")
+    tx_id = seed_transaction(fake_db, created_by=fin_id, status="SUBMITTED")
+    resp = client.post(
+        f"/api/transactions/{tx_id}/reject",
+        headers=auth_header(make_token(fin_id)),
+        json={"reason": "Missing receipt"},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["status"] == "REJECTED"
+    assert body["reviewed_by"] == fin_id
+    assert body["reviewed_at"] is not None
+    assert body["rejection_reason"] == "Missing receipt"
+    logs = [lg for lg in fake_db.tables["transaction_audit_logs"]
+            if lg["action"] == "REJECT"]
+    assert logs
+    assert logs[-1]["reason"] == "Missing receipt"
+    assert logs[-1]["old_value"] == {"status": "SUBMITTED"}
+    assert logs[-1]["new_value"]["status"] == "REJECTED"
+    assert logs[-1]["new_value"]["rejection_reason"] == "Missing receipt"
+
+
+def test_reject_requires_reason(client: TestClient, fake_db: FakeClient) -> None:
+    fin_id = seed_user(fake_db, "FINANCE_ADMIN")
+    tx_id = seed_transaction(fake_db, created_by=fin_id, status="SUBMITTED")
+    missing = client.post(
+        f"/api/transactions/{tx_id}/reject", headers=auth_header(make_token(fin_id)),
+        json={},
+    )
+    empty = client.post(
+        f"/api/transactions/{tx_id}/reject", headers=auth_header(make_token(fin_id)),
+        json={"reason": ""},
+    )
+    blank = client.post(
+        f"/api/transactions/{tx_id}/reject", headers=auth_header(make_token(fin_id)),
+        json={"reason": "   "},
+    )
+    assert missing.status_code == 422
+    assert empty.status_code == 422
+    assert blank.status_code == 422
+
+
+def test_reject_requires_submitted_status(
+    client: TestClient, fake_db: FakeClient
+) -> None:
+    fin_id = seed_user(fake_db, "FINANCE_ADMIN")
+    tx_id = seed_transaction(fake_db, created_by=fin_id, status="APPROVED")
+    resp = client.post(
+        f"/api/transactions/{tx_id}/reject",
+        headers=auth_header(make_token(fin_id)),
+        json={"reason": "Wrong state"},
+    )
+    assert resp.status_code == 409
+
+
+def test_reject_second_call_conflicts_without_duplicate_audit(
+    client: TestClient, fake_db: FakeClient
+) -> None:
+    fin_id = seed_user(fake_db, "FINANCE_ADMIN")
+    token = auth_header(make_token(fin_id))
+    tx_id = seed_transaction(fake_db, created_by=fin_id, status="SUBMITTED")
+    first = client.post(
+        f"/api/transactions/{tx_id}/reject",
+        headers=token,
+        json={"reason": "Missing receipt"},
+    )
+    assert first.status_code == 200
+    second = client.post(
+        f"/api/transactions/{tx_id}/reject",
+        headers=token,
+        json={"reason": "Second reason"},
+    )
+    assert second.status_code == 409
+    logs = [lg for lg in fake_db.tables["transaction_audit_logs"]
+            if lg["action"] == "REJECT"]
+    assert len(logs) == 1
+    assert logs[0]["reason"] == "Missing receipt"
+
+
+def test_non_finance_users_cannot_reject_or_void(
+    client: TestClient, fake_db: FakeClient
+) -> None:
+    creator_id = seed_user(fake_db, "FINANCE_ADMIN", email="creator@x.com")
+    submitted = seed_transaction(
+        fake_db, created_by=creator_id, status="SUBMITTED", transaction_no="T-S"
+    )
+    approved = seed_transaction(
+        fake_db, created_by=creator_id, status="APPROVED", transaction_no="T-A"
+    )
+    roles = [
+        ("EMPLOYEE", DEPT_OWN),
+        ("DEPARTMENT_MANAGER", DEPT_OWN),
+        ("MANAGEMENT", None),
+        ("SYSTEM_ADMIN", None),
+    ]
+    for i, (role, department_id) in enumerate(roles):
+        user_id = seed_user(
+            fake_db, role, department_id=department_id,
+            email=f"reject-void-{i}@x.com", full_name=f"Role {i}",
+        )
+        token = auth_header(make_token(user_id))
+        reject = client.post(
+            f"/api/transactions/{submitted}/reject",
+            headers=token,
+            json={"reason": "No"},
+        )
+        void = client.post(
+            f"/api/transactions/{approved}/void",
+            headers=token,
+            json={"reason": "No"},
+        )
+        assert reject.status_code == 403
+        assert void.status_code == 403
+
+
+def test_finance_admin_voids_approved_transaction_with_reason(
+    client: TestClient, fake_db: FakeClient
+) -> None:
+    fin_id = seed_user(fake_db, "FINANCE_ADMIN")
+    tx_id = seed_transaction(fake_db, created_by=fin_id, status="APPROVED")
+    resp = client.post(
+        f"/api/transactions/{tx_id}/void",
+        headers=auth_header(make_token(fin_id)),
+        json={"reason": "Duplicate transaction"},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["status"] == "VOIDED"
+    assert body["void_reason"] == "Duplicate transaction"
+    assert body["status"] != "APPROVED"
+    logs = [lg for lg in fake_db.tables["transaction_audit_logs"]
+            if lg["action"] == "VOID"]
+    assert logs
+    assert logs[-1]["reason"] == "Duplicate transaction"
+    assert logs[-1]["old_value"] == {"status": "APPROVED"}
+    assert logs[-1]["new_value"] == {
+        "status": "VOIDED",
+        "void_reason": "Duplicate transaction",
+    }
+
+
+def test_void_requires_reason(client: TestClient, fake_db: FakeClient) -> None:
+    fin_id = seed_user(fake_db, "FINANCE_ADMIN")
+    tx_id = seed_transaction(fake_db, created_by=fin_id, status="APPROVED")
+    missing = client.post(
+        f"/api/transactions/{tx_id}/void", headers=auth_header(make_token(fin_id)),
+        json={},
+    )
+    empty = client.post(
+        f"/api/transactions/{tx_id}/void", headers=auth_header(make_token(fin_id)),
+        json={"reason": ""},
+    )
+    blank = client.post(
+        f"/api/transactions/{tx_id}/void", headers=auth_header(make_token(fin_id)),
+        json={"reason": "   "},
+    )
+    assert missing.status_code == 422
+    assert empty.status_code == 422
+    assert blank.status_code == 422
+
+
+def test_void_requires_approved_status(
+    client: TestClient, fake_db: FakeClient
+) -> None:
+    fin_id = seed_user(fake_db, "FINANCE_ADMIN")
+    tx_id = seed_transaction(fake_db, created_by=fin_id, status="SUBMITTED")
+    resp = client.post(
+        f"/api/transactions/{tx_id}/void",
+        headers=auth_header(make_token(fin_id)),
+        json={"reason": "Wrong state"},
+    )
+    assert resp.status_code == 409
+
+
+def test_void_second_call_conflicts_without_duplicate_audit(
+    client: TestClient, fake_db: FakeClient
+) -> None:
+    fin_id = seed_user(fake_db, "FINANCE_ADMIN")
+    token = auth_header(make_token(fin_id))
+    tx_id = seed_transaction(fake_db, created_by=fin_id, status="APPROVED")
+    first = client.post(
+        f"/api/transactions/{tx_id}/void",
+        headers=token,
+        json={"reason": "Duplicate"},
+    )
+    assert first.status_code == 200
+    second = client.post(
+        f"/api/transactions/{tx_id}/void",
+        headers=token,
+        json={"reason": "Second reason"},
+    )
+    assert second.status_code == 409
+    logs = [lg for lg in fake_db.tables["transaction_audit_logs"]
+            if lg["action"] == "VOID"]
+    assert len(logs) == 1
+    assert logs[0]["reason"] == "Duplicate"
+
+
 # ── deletion ───────────────────────────────────────────────────
 
 

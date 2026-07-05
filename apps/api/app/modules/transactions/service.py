@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, NoReturn
 
 from supabase import Client
 
@@ -83,6 +83,27 @@ class TransactionService:
                     "Only DRAFT and REJECTED transactions can be edited", 409
                 )
             raise AppError("forbidden", 403)
+
+    def _require_finance_admin(self, user: CurrentUser) -> None:
+        # Approve / reject / void are Finance Admin only. Enforced in the
+        # service layer (router also authenticates via get_current_user).
+        if user.role != Role.FINANCE_ADMIN:
+            raise AppError("forbidden", 403)
+
+    def _require_status(self, tx: dict[str, Any], expected: str) -> None:
+        if tx["status"] != expected:
+            raise AppError(
+                f"Transaction must be {expected} to perform this action", 409
+            )
+
+    def _status_conflict_or_not_found(
+        self, transaction_id: str, expected: str
+    ) -> NoReturn:
+        if self.repo.get(transaction_id):
+            raise AppError(
+                f"Transaction must be {expected} to perform this action", 409
+            )
+        raise AppError("Transaction not found", 404)
 
     def _scope_filters(self, user: CurrentUser) -> dict[str, Any]:
         if user.role == Role.EMPLOYEE:
@@ -308,6 +329,96 @@ class TransactionService:
             "SUBMIT",
             old_value={"status": tx["status"]},
             new_value=new_value,
+        )
+        return TransactionOut(**row)
+
+    def approve(self, transaction_id: str, user: CurrentUser) -> TransactionOut:
+        tx = self.repo.get(transaction_id)
+        if not tx:
+            raise AppError("Transaction not found", 404)
+        self._require_finance_admin(user)
+        self._require_status(tx, "SUBMITTED")
+        row = self.repo.update_if_status(
+            transaction_id,
+            "SUBMITTED",
+            {
+                "status": "APPROVED",
+                "reviewed_by": user.id,
+                "reviewed_at": _now_iso(),
+            },
+        )
+        if not row:
+            self._status_conflict_or_not_found(transaction_id, "SUBMITTED")
+        self._audit(
+            transaction_id,
+            user,
+            "APPROVE",
+            old_value={"status": tx["status"]},
+            new_value={
+                "status": "APPROVED",
+                "reviewed_by": row["reviewed_by"],
+                "reviewed_at": row["reviewed_at"],
+            },
+        )
+        return TransactionOut(**row)
+
+    def reject(
+        self, transaction_id: str, reason: str, user: CurrentUser
+    ) -> TransactionOut:
+        tx = self.repo.get(transaction_id)
+        if not tx:
+            raise AppError("Transaction not found", 404)
+        self._require_finance_admin(user)
+        self._require_status(tx, "SUBMITTED")
+        row = self.repo.update_if_status(
+            transaction_id,
+            "SUBMITTED",
+            {
+                "status": "REJECTED",
+                "reviewed_by": user.id,
+                "reviewed_at": _now_iso(),
+                "rejection_reason": reason,
+            },
+        )
+        if not row:
+            self._status_conflict_or_not_found(transaction_id, "SUBMITTED")
+        self._audit(
+            transaction_id,
+            user,
+            "REJECT",
+            old_value={"status": tx["status"]},
+            new_value={
+                "status": "REJECTED",
+                "reviewed_by": row["reviewed_by"],
+                "reviewed_at": row["reviewed_at"],
+                "rejection_reason": reason,
+            },
+            reason=reason,
+        )
+        return TransactionOut(**row)
+
+    def void(
+        self, transaction_id: str, reason: str, user: CurrentUser
+    ) -> TransactionOut:
+        tx = self.repo.get(transaction_id)
+        if not tx:
+            raise AppError("Transaction not found", 404)
+        self._require_finance_admin(user)
+        self._require_status(tx, "APPROVED")
+        row = self.repo.update_if_status(
+            transaction_id,
+            "APPROVED",
+            {"status": "VOIDED", "void_reason": reason},
+        )
+        if not row:
+            self._status_conflict_or_not_found(transaction_id, "APPROVED")
+        self._audit(
+            transaction_id,
+            user,
+            "VOID",
+            old_value={"status": tx["status"]},
+            new_value={"status": "VOIDED", "void_reason": reason},
+            reason=reason,
         )
         return TransactionOut(**row)
 

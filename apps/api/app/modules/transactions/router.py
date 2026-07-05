@@ -9,6 +9,7 @@ from app.core.models import CurrentUser
 from app.core.supabase_client import get_supabase_client
 from app.modules.transactions.schemas import (
     AuditLogOut,
+    ReviewAction,
     TransactionCreate,
     TransactionDirection,
     TransactionOut,
@@ -94,6 +95,38 @@ async def submit_transaction(
     settings: SettingsDep,
 ) -> TransactionOut:
     return _service(db, settings).submit(transaction_id, user)
+
+
+@router.post("/{transaction_id}/approve", response_model=TransactionOut)
+async def approve_transaction(
+    transaction_id: str,
+    db: DbDep,
+    user: UserDep,
+    settings: SettingsDep,
+) -> TransactionOut:
+    return _service(db, settings).approve(transaction_id, user)
+
+
+@router.post("/{transaction_id}/reject", response_model=TransactionOut)
+async def reject_transaction(
+    transaction_id: str,
+    data: ReviewAction,
+    db: DbDep,
+    user: UserDep,
+    settings: SettingsDep,
+) -> TransactionOut:
+    return _service(db, settings).reject(transaction_id, data.reason, user)
+
+
+@router.post("/{transaction_id}/void", response_model=TransactionOut)
+async def void_transaction(
+    transaction_id: str,
+    data: ReviewAction,
+    db: DbDep,
+    user: UserDep,
+    settings: SettingsDep,
+) -> TransactionOut:
+    return _service(db, settings).void(transaction_id, data.reason, user)
 
 
 @router.delete("/{transaction_id}", status_code=status.HTTP_204_NO_CONTENT)

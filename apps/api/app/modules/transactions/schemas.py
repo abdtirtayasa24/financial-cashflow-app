@@ -1,7 +1,7 @@
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class TransactionDirection(StrEnum):
@@ -104,3 +104,17 @@ class TransactionFilters(BaseModel):
     cash_account_id: str | None = None
     status: TransactionStatus | None = None
     direction: TransactionDirection | None = None
+
+
+class ReviewAction(BaseModel):
+    """Body for reject / void actions — a reason is required."""
+
+    reason: str = Field(min_length=1)
+
+    @field_validator("reason")
+    @classmethod
+    def reason_must_not_be_blank(cls, value: str) -> str:
+        reason = value.strip()
+        if not reason:
+            raise ValueError("Reason is required")
+        return reason

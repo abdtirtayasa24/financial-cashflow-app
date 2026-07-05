@@ -70,6 +70,19 @@ class TransactionRepository:
         rows = cast(list[dict[str, Any]], resp.data)
         return rows[0] if rows else None
 
+    def update_if_status(
+        self, transaction_id: str, expected_status: str, payload: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        resp = (
+            self.db.table(self.table)
+            .update(payload)
+            .eq("id", transaction_id)
+            .eq("status", expected_status)
+            .execute()
+        )
+        rows = cast(list[dict[str, Any]], resp.data)
+        return rows[0] if rows else None
+
     def delete(self, transaction_id: str) -> int:
         resp = self.db.table(self.table).delete().eq("id", transaction_id).execute()
         return len(cast(list[dict[str, Any]], resp.data))

@@ -218,12 +218,70 @@ export async function submitTransaction(
   }
   revalidatePath(`/transactions/${id}`);
   revalidatePath("/transactions");
+  revalidatePath("/approvals");
+  return { error: null };
+}
+
+export async function approveTransaction(
+  _prev: ActionResult | null,
+  formData: FormData
+): Promise<ActionResult> {
+  const id = str(formData, "id");
+  try {
+    await apiSend(`/api/transactions/${id}/approve`, "POST");
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to approve transaction" };
+  }
+  revalidatePath(`/transactions/${id}`);
+  revalidatePath("/transactions");
+  revalidatePath("/approvals");
+  return { error: null };
+}
+
+export async function rejectTransaction(
+  _prev: ActionResult | null,
+  formData: FormData
+): Promise<ActionResult> {
+  const id = str(formData, "id");
+  const reason = str(formData, "reason").trim();
+  if (!reason) {
+    return { error: "Rejection reason is required" };
+  }
+  try {
+    await apiSend(`/api/transactions/${id}/reject`, "POST", { reason });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to reject transaction" };
+  }
+  revalidatePath(`/transactions/${id}`);
+  revalidatePath("/transactions");
+  revalidatePath("/approvals");
+  return { error: null };
+}
+
+export async function voidTransaction(
+  _prev: ActionResult | null,
+  formData: FormData
+): Promise<ActionResult> {
+  const id = str(formData, "id");
+  const reason = str(formData, "reason").trim();
+  if (!reason) {
+    return { error: "Void reason is required" };
+  }
+  try {
+    await apiSend(`/api/transactions/${id}/void`, "POST", { reason });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to void transaction" };
+  }
+  revalidatePath(`/transactions/${id}`);
+  revalidatePath("/transactions");
+  revalidatePath("/approvals");
   return { error: null };
 }
 
 export async function deleteTransaction(formData: FormData): Promise<void> {
   await apiSend(`/api/transactions/${str(formData, "id")}`, "DELETE");
   revalidatePath("/transactions");
+  revalidatePath("/approvals");
   redirect("/transactions");
 }
 

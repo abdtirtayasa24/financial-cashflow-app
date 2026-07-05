@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { deleteAttachment, deleteTransaction } from "@/app/actions";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import { VoidForm } from "@/components/ReviewActions";
 import { StatusBadge } from "@/components/StatusBadge";
 import { SubmitForm } from "@/components/SubmitForm";
 import { UploadForm } from "@/components/UploadForm";
@@ -85,6 +86,7 @@ export default async function TransactionDetailPage({
     user != null &&
     (user.role === "FINANCE_ADMIN" ||
       (user.role === "EMPLOYEE" && tx.created_by === user.id));
+  const canVoid = user?.role === "FINANCE_ADMIN" && tx.status === "APPROVED";
 
   return (
     <div className="container">
@@ -104,18 +106,23 @@ export default async function TransactionDetailPage({
         </Link>
       </div>
 
-      {canMutate ? (
+      {canMutate || canVoid ? (
         <div className="action-bar section">
-          <Link href={`/transactions/${id}/edit`} className="btn-primary">
-            Edit
-          </Link>
-          <SubmitForm id={id} />
-          <ConfirmButton
-            action={deleteTransaction}
-            id={id}
-            label={tx.transaction_no}
-            confirmLabel="Confirm delete"
-          />
+          {canMutate ? (
+            <>
+              <Link href={`/transactions/${id}/edit`} className="btn-primary">
+                Edit
+              </Link>
+              <SubmitForm id={id} />
+              <ConfirmButton
+                action={deleteTransaction}
+                id={id}
+                label={tx.transaction_no}
+                confirmLabel="Confirm delete"
+              />
+            </>
+          ) : null}
+          {canVoid ? <VoidForm id={id} /> : null}
         </div>
       ) : null}
 
