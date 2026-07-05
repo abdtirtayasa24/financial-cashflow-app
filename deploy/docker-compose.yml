@@ -35,6 +35,35 @@ services:
     expose:
       - "8000"
 
+  cron:
+    build:
+      context: ../apps/api
+    restart: unless-stopped
+    environment:
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      UPLOAD_DIR: /var/app/financial-cashflow/uploads
+      EXPORTS_DIR: /var/app/financial-cashflow/exports
+    volumes:
+      - uploads_data:/var/app/financial-cashflow/uploads
+      - exports_data:/var/app/financial-cashflow/exports
+      - backup_data:/var/backups/financial-cashflow/uploads
+      - ./cron/crontab:/etc/cron.d/financial-cashflow:ro
+      - ../scripts:/app/scripts:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+          apt-get update \
+          && apt-get install -y --no-install-recommends cron \
+          && rm -rf /var/lib/apt/lists/* \
+          && mkdir -p /var/log/cron \
+          && crontab /etc/cron.d/financial-cashflow \
+          && cron -f
+    depends_on:
+      - api
+
   nginx:
     image: nginx:stable
     restart: unless-stopped
@@ -50,3 +79,4 @@ services:
 volumes:
   uploads_data:
   exports_data:
+  backup_data:

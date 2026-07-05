@@ -37,4 +37,5 @@ VALUES
 INSERT INTO app_settings (key, value)
 VALUES
   ('attachment_threshold_enabled', 'true'),
-  ('attachment_threshold_amount', '5000000');
+  ('attachment_threshold_amount', '5000000'),
+  ('export_retention_days', '7');

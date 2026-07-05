@@ -97,6 +97,22 @@ class TransactionRepository:
         )
         return [r["transaction_no"] for r in cast(Rows, resp.data)]
 
+    def next_transaction_no(self, direction: str, transaction_date: str) -> str:
+        """Generate the next transaction_no for a direction + year-month.
+
+        Format: {DIRECTION}-{YYYYMM}-{SEQ:06d}, scoped per direction + month.
+        """
+        year_month = transaction_date[:7].replace("-", "")
+        prefix = f"{direction}-{year_month}-"
+        existing = self.existing_transaction_nos(direction)
+        seqs = [
+            int(n[len(prefix):])
+            for n in existing
+            if n.startswith(prefix) and n[len(prefix):].isdigit()
+        ]
+        seq = max(seqs) + 1 if seqs else 1
+        return f"{prefix}{seq:06d}"
+
     # ── audit logs ─────────────────────────────────────────────
     def list_audit_logs(self, transaction_id: str) -> Rows:
         resp = (
@@ -110,6 +126,28 @@ class TransactionRepository:
 
     def insert_audit_log(self, payload: dict[str, Any]) -> None:
         self.db.table(self.audit_table).insert(payload).execute()
+
+    def audit(
+        self,
+        transaction_id: str,
+        actor_user_id: str,
+        action: str,
+        *,
+        old_value: dict[str, Any] | None = None,
+        new_value: dict[str, Any] | None = None,
+        reason: str | None = None,
+    ) -> None:
+        """Convenience wrapper for inserting an audit log entry."""
+        self.insert_audit_log(
+            {
+                "transaction_id": transaction_id,
+                "actor_user_id": actor_user_id,
+                "action": action,
+                "old_value": old_value,
+                "new_value": new_value,
+                "reason": reason,
+            }
+        )
 
     def delete_audit_logs(self, transaction_id: str) -> int:
         resp = (

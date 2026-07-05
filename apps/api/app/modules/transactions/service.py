@@ -30,6 +30,15 @@ EDITABLE_FIELDS = (
     "description",
 )
 
+
+def editable_snapshot(tx: dict[str, Any]) -> dict[str, Any]:
+    """Extract a snapshot of editable fields from a transaction dict.
+
+    Used by TransactionService and RecurringGeneratorService to capture
+    audit-log old/new values.
+    """
+    return {f: tx.get(f) for f in EDITABLE_FIELDS}
+
 _MUTABLE_STATUSES = {"DRAFT", "REJECTED"}
 # Roles allowed read access to transactions (System Admin is read-only here;
 # see CONTEXT.md "Roles & Authorization"). Mutation is gated separately.
@@ -119,17 +128,7 @@ class TransactionService:
         return {}
 
     # ── transaction number ─────────────────────────────────────
-    def _next_transaction_no(self, direction: str, transaction_date: str) -> str:
-        year_month = transaction_date[:7].replace("-", "")
-        prefix = f"{direction}-{year_month}-"
-        existing = self.repo.existing_transaction_nos(direction)
-        seqs = [
-            int(n[len(prefix):])
-            for n in existing
-            if n.startswith(prefix) and n[len(prefix):].isdigit()
-        ]
-        seq = max(seqs) + 1 if seqs else 1
-        return f"{prefix}{seq:06d}"
+    # next_transaction_no is now on the repository — no duplication.
 
     # ── attachment threshold ───────────────────────────────────
     def _setting(self, key: str, default: str) -> str:
@@ -160,7 +159,7 @@ class TransactionService:
 
     # ── audit logging ──────────────────────────────────────────
     def _editable_snapshot(self, tx: dict[str, Any]) -> dict[str, Any]:
-        return {f: tx.get(f) for f in EDITABLE_FIELDS}
+        return editable_snapshot(tx)
 
     def _audit(
         self,
@@ -172,15 +171,13 @@ class TransactionService:
         new_value: dict[str, Any] | None = None,
         reason: str | None = None,
     ) -> None:
-        self.repo.insert_audit_log(
-            {
-                "transaction_id": transaction_id,
-                "actor_user_id": actor.id,
-                "action": action,
-                "old_value": old_value,
-                "new_value": new_value,
-                "reason": reason,
-            }
+        self.repo.audit(
+            transaction_id,
+            actor.id,
+            action,
+            old_value=old_value,
+            new_value=new_value,
+            reason=reason,
         )
 
     # ── operations ─────────────────────────────────────────────
@@ -233,7 +230,7 @@ class TransactionService:
                     403,
                 )
 
-        transaction_no = self._next_transaction_no(
+        transaction_no = self.repo.next_transaction_no(
             data.direction.value, data.transaction_date
         )
         payload: dict[str, Any] = {
@@ -283,7 +280,7 @@ class TransactionService:
             new_direction = str(payload.get("direction", tx["direction"]))
             new_date = payload.get("transaction_date", tx["transaction_date"])
             payload["direction"] = new_direction
-            payload["transaction_no"] = self._next_transaction_no(
+            payload["transaction_no"] = self.repo.next_transaction_no(
                 new_direction, new_date
             )
 

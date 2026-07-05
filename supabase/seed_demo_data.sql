@@ -268,7 +268,8 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO app_settings (key, value, updated_by)
 VALUES
   ('attachment_threshold_enabled', 'true', '00000000-0000-0000-0000-000000000103'),
-  ('attachment_threshold_amount', '5000000', '00000000-0000-0000-0000-000000000103')
+  ('attachment_threshold_amount', '5000000', '00000000-0000-0000-0000-000000000103'),
+  ('export_retention_days', '7', '00000000-0000-0000-0000-000000000103')
 ON CONFLICT (key) DO UPDATE SET
   value = EXCLUDED.value,
   updated_by = EXCLUDED.updated_by,

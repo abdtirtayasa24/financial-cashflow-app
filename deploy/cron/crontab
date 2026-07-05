@@ -1,0 +1,26 @@
+# Financial Cashflow App — Cron Schedule
+#
+# Format: minute hour day-of-month month day-of-week command
+# All times are in the container's timezone (UTC by default).
+#
+# Python cron scripts run with the system Python (installed via pip in the
+# API Dockerfile, no separate venv). The scripts are mounted at /app/scripts.
+# The app package is installed system-wide so `import app.*` works.
+
+# Daily report snapshot at 01:00
+0 1 * * * python3 /app/scripts/refresh_report_snapshots.py >> /var/log/cron/refresh_report_snapshots.log 2>&1
+
+# Monthly financial snapshot at 01:30 on the 1st of each month
+30 1 1 * * python3 /app/scripts/monthly_financial_snapshot.py >> /var/log/cron/monthly_financial_snapshot.log 2>&1
+
+# Expired export cleanup at 02:00 daily
+0 2 * * * python3 /app/scripts/cleanup_old_exports.py >> /var/log/cron/cleanup_old_exports.log 2>&1
+
+# Upload backup at 03:00 daily
+0 3 * * * UPLOAD_DIR=/var/app/financial-cashflow/uploads BACKUP_DIR=/var/backups/financial-cashflow/uploads /bin/sh /app/scripts/backup_uploads.sh >> /var/log/cron/backup_uploads.log 2>&1
+
+# Missing attachment check at 04:00 daily
+0 4 * * * python3 /app/scripts/check_missing_attachments.py >> /var/log/cron/check_missing_attachments.log 2>&1
+
+# Recurring transaction generation at 05:00 daily
+0 5 * * * python3 /app/scripts/generate_recurring_transactions.py >> /var/log/cron/generate_recurring_transactions.log 2>&1
