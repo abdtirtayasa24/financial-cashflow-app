@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -67,7 +68,7 @@ def upload_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
 @pytest.fixture(autouse=True)
 def override_dependencies(
     fake_db: FakeClient, upload_tmp: Path
-) -> None:
+) -> Generator[None, None, None]:
     app.dependency_overrides[get_supabase_client] = lambda: fake_db
     app.dependency_overrides[get_settings] = lambda: _test_settings(upload_tmp)
     yield
