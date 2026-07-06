@@ -31,6 +31,21 @@ def test_system_admin_updates_attachment_threshold_settings(
     assert amount.json()["value"] == "7500000"
 
 
+def test_management_updates_attachment_threshold_settings(
+    client: TestClient, fake_db: FakeClient
+) -> None:
+    user_id = seed_user(fake_db, "MANAGEMENT")
+
+    resp = client.put(
+        "/api/settings",
+        headers=auth_header(make_token(user_id)),
+        json={"key": "attachment_threshold_amount", "value": "8000000"},
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["value"] == "8000000"
+
+
 def test_attachment_threshold_enabled_must_be_boolean(
     client: TestClient, fake_db: FakeClient
 ) -> None:

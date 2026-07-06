@@ -11,7 +11,9 @@ from app.modules.app_settings.service import AppSettingService
 
 router = APIRouter(prefix="/settings", tags=["App Settings"])
 
-SysAdmin = Annotated[CurrentUser, Depends(require_roles(Role.SYSTEM_ADMIN))]
+SysAdmin = Annotated[
+    CurrentUser, Depends(require_roles(Role.SYSTEM_ADMIN, Role.MANAGEMENT))
+]
 
 
 def _not_found() -> HTTPException:

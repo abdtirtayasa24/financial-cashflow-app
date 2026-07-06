@@ -3,6 +3,7 @@ import { RecurringTemplateForm } from "@/components/RecurringTemplateForm";
 import { apiGet } from "@/lib/api";
 import { getCurrentUser } from "@/lib/current-user";
 import type { CashAccount, Category, Department, PaymentMethod, RecurringTemplate } from "@/lib/types";
+import { isFinanceRole } from "@/lib/types";
 
 function nameById<T extends { id: string; name: string }>(items: T[], id: string | null | undefined): string {
   return items.find((item) => item.id === id)?.name ?? "—";
@@ -10,7 +11,7 @@ function nameById<T extends { id: string; name: string }>(items: T[], id: string
 
 export default async function RecurringPage() {
   const user = await getCurrentUser();
-  if (!user || !["FINANCE_ADMIN", "EMPLOYEE", "DEPARTMENT_MANAGER"].includes(user.role)) {
+  if (!user || !["FINANCE_ADMIN", "MANAGEMENT", "EMPLOYEE", "DEPARTMENT_MANAGER"].includes(user.role)) {
     return <div className="container"><div className="empty"><div className="empty__title">Not available</div><p className="empty__desc">Your role cannot access recurring templates.</p></div></div>;
   }
 
@@ -21,10 +22,10 @@ export default async function RecurringPage() {
     apiGet<CashAccount[]>("/api/cash-accounts"),
     apiGet<PaymentMethod[]>("/api/payment-methods"),
   ]);
-  const canMutate = user.role === "FINANCE_ADMIN" || user.role === "EMPLOYEE";
+  const canMutate = isFinanceRole(user.role) || user.role === "EMPLOYEE";
   const canManageTemplate = (template: RecurringTemplate): boolean => {
     if (!template.is_active) return false;
-    if (user.role === "FINANCE_ADMIN") return true;
+    if (isFinanceRole(user.role)) return true;
     return (
       user.role === "EMPLOYEE" &&
       template.created_by === user.id &&

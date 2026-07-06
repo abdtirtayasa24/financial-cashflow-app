@@ -192,14 +192,14 @@ FastAPI must validate the current user before allowing access to protected APIs.
 
 Role permissions:
 
-Roles are **strictly one-per-user** — no dual roles, no overlapping permissions.
+Roles are **strictly one-per-user** — no dual role assignments. Management is intentionally a broad oversight role that combines Finance Admin and System Admin capabilities.
 
 | Role               | Allowed                                                                                 |
 | ------------------ | --------------------------------------------------------------------------------------- |
 | Employee           | Create, edit own draft/rejected transactions, submit own transactions, view own records |
 | Department Manager | View own department transactions. **Cannot** create, edit, submit, approve, reject, or void |
 | Finance Admin      | View all records, create transactions for any department, approve, reject, void, export reports |
-| Management         | View dashboard and reports only. **Cannot** create, edit, approve, reject, or void transactions |
+| Management         | Full access: Finance Admin transaction/report capabilities plus System Admin administrative capabilities |
 | System Admin       | Manage users, departments, categories, payment methods, cash accounts, and app settings. Can view all transactions read-only. **Cannot** create, edit, submit, delete, approve, reject, or void transactions |
 
 If a department head needs to create transactions, they should be assigned the `EMPLOYEE` role, not `DEPARTMENT_MANAGER`.
@@ -248,7 +248,7 @@ Rules:
 **Not editable** (system-managed): `transaction_no`, `created_by`, `created_at`, `updated_at`, `status`, `submitted_at`, `reviewed_by`, `reviewed_at`, `rejection_reason`, `void_reason`.
 
 **Deletion policy:**
-* `DRAFT` and `REJECTED` transactions can be hard-deleted by the creator or Finance Admin.
+* `DRAFT` and `REJECTED` transactions can be hard-deleted by the creator, Finance Admin, or Management.
 * `SUBMITTED`, `APPROVED`, and `VOIDED` transactions cannot be deleted.
 * Deleting a `DRAFT`/`REJECTED` transaction also deletes its attachments (metadata + VPS files) and its audit logs.
 * A delete action creates a final audit log entry before the deletion happens.
@@ -360,6 +360,7 @@ Rules:
 * Jobs may flag missing attachments.
 * Jobs may back up uploaded files.
 * Jobs may generate transactions from recurring templates (auto-submit creates SUBMITTED, draft/reminder creates DRAFT).
+* HTTP-triggered cron jobs must require `CRON_API_TOKEN` via `Authorization: Bearer <token>` and remain idempotent.
 
 ---
 
@@ -392,7 +393,7 @@ The agent must implement in-app notifications only (no email for the MVP).
 
 Rules:
 
-* When a transaction is submitted, the service layer inserts a notification for all active Finance Admin users.
+* When a transaction is submitted, the service layer inserts a notification for all active Finance Admin and Management users.
 * When a recurring draft is generated, the service layer inserts a notification for the template creator.
 * Frontend fetches notifications on page load, shows unread count in a bell icon.
 * Notifications are stored in a `notifications` table.
@@ -402,11 +403,11 @@ Rules:
 
 ### 11c. CSV/Excel Import Rules
 
-The agent must implement CSV/Excel transaction import for Finance Admin only.
+The agent must implement CSV/Excel transaction import for Finance Admin or Management only.
 
 Rules:
 
-* Only Finance Admin can import transactions.
+* Only Finance Admin or Management can import transactions.
 * Imported transactions start as `DRAFT` — no auto-submit on import.
 * Expected columns: `transaction_date`, `direction`, `amount`, `category_name`, `department_code`, `cash_account_name`, `payment_method_name`, `counterparty_name`, `reference_no`, `description`.
 * Category, department, cash account, and payment method are matched by name/code to resolve IDs.
@@ -479,19 +480,19 @@ Minimum backend tests:
 - Employee cannot approve transactions.
 - Department Manager cannot create, edit, or submit transactions.
 - System Admin cannot approve, reject, or void transactions.
-- Finance Admin can approve submitted transactions.
+- Finance Admin or Management can approve submitted transactions.
 - Rejected transaction can be resubmitted directly (REJECTED -> SUBMITTED).
 - Approved transactions cannot be edited.
 - Rejected transactions require a reason.
 - Voided transactions require a reason.
-- Draft/rejected transactions can be deleted by creator or Finance Admin.
+- Draft/rejected transactions can be deleted by creator, Finance Admin, or Management.
 - Submitted/approved/voided transactions cannot be deleted.
 - Attachment threshold blocks submission when enabled and amount >= threshold with no attachments.
 - Reports include only approved transactions.
 - Current cash balance is not affected by date range filter.
 - File download requires permission.
 - Employee cannot create auto-submit recurring templates.
-- Finance Admin can import CSV/Excel.
+- Finance Admin or Management can import CSV/Excel.
 - Employee cannot import.
 - Importing creates DRAFT transactions.
 ```
@@ -503,10 +504,10 @@ Minimum frontend checks:
 - Dashboard page loads.
 - Current cash balance shown (as-of now, not date-range-filtered).
 - Transaction creation form validates required fields.
-- Approval page is restricted to Finance Admin.
+- Approval page is restricted to Finance Admin or Management.
 - Attachment upload rejects invalid file types.
 - Notification bell shows unread count.
-- Import page is restricted to Finance Admin.
+- Import page is restricted to Finance Admin or Management.
 - Recurring templates page visible based on role.
 ```
 
@@ -532,6 +533,7 @@ SUPABASE_URL
 UPLOAD_DIR
 JWT_SECRET
 SUPABASE_JWKS_URL
+CRON_API_TOKEN
 ```
 
 Rules:

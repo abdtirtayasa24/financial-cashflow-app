@@ -13,6 +13,7 @@ from app.modules.app_settings.router import router as settings_router
 from app.modules.attachments.router import router as attachments_router
 from app.modules.cash_accounts.router import router as cash_accounts_router
 from app.modules.cashflow_categories.router import router as categories_router
+from app.modules.cron.router import router as cron_router
 from app.modules.departments.router import router as departments_router
 from app.modules.imports.router import router as imports_router
 from app.modules.notifications.router import router as notifications_router
@@ -65,6 +66,7 @@ app.include_router(reports_router, prefix=settings.api_prefix)
 app.include_router(recurring_templates_router, prefix=settings.api_prefix)
 app.include_router(transactions_router, prefix=settings.api_prefix)
 app.include_router(attachments_router, prefix=settings.api_prefix)
+app.include_router(cron_router, prefix=settings.api_prefix)
 
 
 @app.get(f"{settings.api_prefix}/health", status_code=status.HTTP_200_OK, tags=["Health"])

@@ -76,6 +76,29 @@ export const ROLES: Role[] = [
   "SYSTEM_ADMIN",
 ];
 
+/**
+ * Roles that have Finance Admin transaction capabilities
+ * (create, approve, reject, void, import, manage recurring templates).
+ */
+export const FINANCE_ROLES: Role[] = ["FINANCE_ADMIN", "MANAGEMENT"];
+
+/**
+ * Roles that have System Admin administrative capabilities
+ * (manage users, departments, categories, payment methods, cash accounts, settings).
+ */
+export const ADMIN_ROLES: Role[] = ["SYSTEM_ADMIN", "MANAGEMENT"];
+
+/** True if the role can perform Finance Admin transaction workflows. */
+export function isFinanceRole(role: Role | undefined | null): boolean {
+  return !!role && FINANCE_ROLES.includes(role);
+}
+
+/** True if the role can perform System Admin administrative workflows. */
+export function isAdminRole(role: Role | undefined | null): boolean {
+  return !!role && ADMIN_ROLES.includes(role);
+}
+
+
 export type TransactionDirection = "INFLOW" | "OUTFLOW";
 
 export type TransactionStatus =

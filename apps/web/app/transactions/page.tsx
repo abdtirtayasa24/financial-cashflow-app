@@ -9,7 +9,7 @@ import type {
   Department,
   Transaction,
 } from "@/lib/types";
-import { DIRECTIONS, TRANSACTION_STATUSES } from "@/lib/types";
+import { DIRECTIONS, TRANSACTION_STATUSES, isFinanceRole } from "@/lib/types";
 import { StatusBadge } from "@/components/StatusBadge";
 
 const PAGE_SIZE = 50;
@@ -60,7 +60,7 @@ export default async function TransactionsPage({
   const deptName = (id: string) =>
     departments.find((d) => d.id === id)?.name ?? "—";
   const canCreate =
-    user?.role === "EMPLOYEE" || user?.role === "FINANCE_ADMIN";
+    user?.role === "EMPLOYEE" || isFinanceRole(user?.role);
   const hasMore = transactions.length === PAGE_SIZE;
 
   return (

@@ -75,7 +75,7 @@ class NotificationRepository:
         resp = (
             self.db.table("user_profiles")
             .select("id")
-            .eq("role", "FINANCE_ADMIN")
+            .in_("role", ["FINANCE_ADMIN", "MANAGEMENT"])
             .eq("status", "ACTIVE")
             .execute()
         )

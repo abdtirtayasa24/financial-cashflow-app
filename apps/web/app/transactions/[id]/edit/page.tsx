@@ -11,6 +11,7 @@ import type {
   PaymentMethod,
   Transaction,
 } from "@/lib/types";
+import { isFinanceRole } from "@/lib/types";
 
 export default async function EditTransactionPage({
   params,
@@ -40,7 +41,7 @@ export default async function EditTransactionPage({
   const canMutate =
     isMutableStatus &&
     user != null &&
-    (user.role === "FINANCE_ADMIN" ||
+    (isFinanceRole(user.role) ||
       (user.role === "EMPLOYEE" && tx.created_by === user.id));
 
   if (!canMutate) {

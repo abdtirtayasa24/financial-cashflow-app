@@ -10,6 +10,7 @@ import type {
   Department,
   PaymentMethod,
 } from "@/lib/types";
+import { isFinanceRole } from "@/lib/types";
 
 export default async function NewTransactionPage() {
   const user = await getCurrentUser();
@@ -20,7 +21,7 @@ export default async function NewTransactionPage() {
     apiGet<PaymentMethod[]>("/api/payment-methods"),
   ]);
 
-  if (!user || (user.role !== "EMPLOYEE" && user.role !== "FINANCE_ADMIN")) {
+  if (!user || (user.role !== "EMPLOYEE" && !isFinanceRole(user.role))) {
     return (
       <div className="container">
         <div className="empty">

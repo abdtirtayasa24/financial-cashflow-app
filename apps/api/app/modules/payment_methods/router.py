@@ -16,7 +16,9 @@ from app.modules.payment_methods.service import PaymentMethodService
 router = APIRouter(prefix="/payment-methods", tags=["Payment Methods"])
 
 CurrentUserDep = Annotated[CurrentUser, Depends(get_current_user)]
-SysAdmin = Annotated[CurrentUser, Depends(require_roles(Role.SYSTEM_ADMIN))]
+SysAdmin = Annotated[
+    CurrentUser, Depends(require_roles(Role.SYSTEM_ADMIN, Role.MANAGEMENT))
+]
 
 
 def _not_found() -> HTTPException:

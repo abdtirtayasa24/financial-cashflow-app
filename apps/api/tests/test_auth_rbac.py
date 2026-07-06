@@ -118,13 +118,30 @@ def test_employee_role_requires_department(
 def test_non_admin_cannot_update_department(
     client: TestClient, fake_db: FakeClient
 ) -> None:
-    user_id = seed_user(fake_db, "MANAGEMENT")
+    user_id = seed_user(fake_db, "EMPLOYEE", department_id="dept-1")
     response = client.patch(
         "/api/departments/dept-1",
         headers=auth_header(make_token(user_id)),
         json={"name": "Renamed"},
     )
     assert response.status_code == 403
+
+
+def test_management_can_create_user(client: TestClient, fake_db: FakeClient) -> None:
+    user_id = seed_user(fake_db, "MANAGEMENT")
+    response = client.post(
+        "/api/users",
+        headers=auth_header(make_token(user_id)),
+        json={
+            "email": "managed@example.com",
+            "password": "supersecret",
+            "full_name": "Managed User",
+            "role": "SYSTEM_ADMIN",
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    assert response.json()["role"] == "SYSTEM_ADMIN"
 
 
 def test_jwt_secret_is_never_in_response_payloads() -> None:

@@ -176,7 +176,7 @@ def test_user_marks_all_own_notifications_as_read(
     assert other_count.json() == {"count": 1}
 
 
-def test_submitting_transaction_notifies_active_finance_admins(
+def test_submitting_transaction_notifies_active_finance_admins_and_management(
     client: TestClient, fake_db: FakeClient
 ) -> None:
     employee_id = seed_user(fake_db, "EMPLOYEE", department_id=DEPT_OWN)
@@ -186,6 +186,9 @@ def test_submitting_transaction_notifies_active_finance_admins(
     inactive_finance = seed_user(
         fake_db, "FINANCE_ADMIN", status="INACTIVE",
         email="inactive@example.com", full_name="Inactive Finance",
+    )
+    management_id = seed_user(
+        fake_db, "MANAGEMENT", email="management@example.com", full_name="Management"
     )
     manager_id = seed_user(
         fake_db, "DEPARTMENT_MANAGER", department_id=DEPT_OWN,
@@ -208,6 +211,12 @@ def test_submitting_transaction_notifies_active_finance_admins(
     assert rows[0]["type"] == "PENDING_APPROVAL"
     assert rows[0]["related_transaction_id"] == tx_id
     assert "INFLOW-202607-000001" in rows[0]["message"]
+
+    management_notifications = client.get(
+        "/api/notifications", headers=auth_header(make_token(management_id))
+    )
+    assert len(management_notifications.json()) == 1
+    assert management_notifications.json()[0]["type"] == "PENDING_APPROVAL"
 
     employee_notifications = client.get(
         "/api/notifications", headers=auth_header(make_token(employee_id))

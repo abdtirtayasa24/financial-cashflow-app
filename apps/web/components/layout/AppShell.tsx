@@ -27,6 +27,7 @@ import {
 } from "@/app/actions";
 import { formatDateTime } from "@/lib/format";
 import type { AppNotification, CurrentUser } from "@/lib/types";
+import { isAdminRole, isFinanceRole } from "@/lib/types";
 
 interface AppShellProps {
   user: CurrentUser | null;
@@ -49,7 +50,7 @@ const mainNav: NavItem[] = [
     href: "/recurring",
     label: "Recurring",
     icon: Repeat,
-    roles: ["FINANCE_ADMIN", "EMPLOYEE", "DEPARTMENT_MANAGER"],
+    roles: ["FINANCE_ADMIN", "MANAGEMENT", "EMPLOYEE", "DEPARTMENT_MANAGER"],
   },
 ];
 
@@ -96,8 +97,8 @@ export function AppShell({
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const isAdmin = user?.role === "SYSTEM_ADMIN";
-  const isFinanceAdmin = user?.role === "FINANCE_ADMIN";
+  const isAdmin = isAdminRole(user?.role);
+  const isFinanceAdmin = isFinanceRole(user?.role);
 
   const closeSidebar = () => setSidebarOpen(false);
 

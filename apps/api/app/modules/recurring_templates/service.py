@@ -12,7 +12,7 @@ from app.modules.recurring_templates.schemas import (
     SubmissionMode,
 )
 
-_VIEW_ALL = {Role.FINANCE_ADMIN}
+_VIEW_ALL = {Role.FINANCE_ADMIN, Role.MANAGEMENT}
 
 
 class RecurringTemplateService:
@@ -40,7 +40,7 @@ class RecurringTemplateService:
     def create(
         self, data: RecurringTemplateCreate, user: CurrentUser
     ) -> RecurringTemplateOut:
-        if user.role not in {Role.FINANCE_ADMIN, Role.EMPLOYEE}:
+        if user.role not in {Role.FINANCE_ADMIN, Role.MANAGEMENT, Role.EMPLOYEE}:
             raise AppError("forbidden", 403)
         self._require_create_allowed(data, user)
         self._validate_references(data.model_dump())
@@ -57,7 +57,7 @@ class RecurringTemplateService:
             raise AppError("Template not found", 404)
         if not row["is_active"]:
             raise AppError("Only active templates can be edited", 409)
-        if user.role not in {Role.FINANCE_ADMIN, Role.EMPLOYEE}:
+        if user.role not in {Role.FINANCE_ADMIN, Role.MANAGEMENT, Role.EMPLOYEE}:
             raise AppError("forbidden", 403)
         payload = data.model_dump(exclude_unset=True)
         if not payload:
@@ -75,7 +75,7 @@ class RecurringTemplateService:
         row = self.repo.get(template_id)
         if not row or not self._can_view(row, user):
             raise AppError("Template not found", 404)
-        if user.role not in {Role.FINANCE_ADMIN, Role.EMPLOYEE}:
+        if user.role not in {Role.FINANCE_ADMIN, Role.MANAGEMENT, Role.EMPLOYEE}:
             raise AppError("forbidden", 403)
         self._require_update_allowed(row, row, user)
         updated = self.repo.update(template_id, {"is_active": False})
@@ -93,7 +93,7 @@ class RecurringTemplateService:
     def _require_create_allowed(
         self, data: RecurringTemplateCreate, user: CurrentUser
     ) -> None:
-        if user.role == Role.FINANCE_ADMIN:
+        if user.role in {Role.FINANCE_ADMIN, Role.MANAGEMENT}:
             return
         if user.role == Role.EMPLOYEE:
             if not user.department_id or data.department_id != user.department_id:
@@ -108,7 +108,7 @@ class RecurringTemplateService:
     def _require_update_allowed(
         self, original: dict[str, Any], merged: dict[str, Any], user: CurrentUser
     ) -> None:
-        if user.role == Role.FINANCE_ADMIN:
+        if user.role in {Role.FINANCE_ADMIN, Role.MANAGEMENT}:
             return
         if user.role == Role.EMPLOYEE:
             if original.get("created_by") != user.id:

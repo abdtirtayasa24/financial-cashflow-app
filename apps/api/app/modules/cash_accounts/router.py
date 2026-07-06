@@ -16,7 +16,9 @@ from app.modules.cash_accounts.service import CashAccountService
 router = APIRouter(prefix="/cash-accounts", tags=["Cash Accounts"])
 
 CurrentUserDep = Annotated[CurrentUser, Depends(get_current_user)]
-SysAdmin = Annotated[CurrentUser, Depends(require_roles(Role.SYSTEM_ADMIN))]
+SysAdmin = Annotated[
+    CurrentUser, Depends(require_roles(Role.SYSTEM_ADMIN, Role.MANAGEMENT))
+]
 
 
 def _not_found() -> HTTPException:

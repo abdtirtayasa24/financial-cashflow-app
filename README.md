@@ -58,6 +58,19 @@ docker compose up --build
 
 Nginx routes `/api/*` to FastAPI and `/*` to Next.js on port 80.
 
+## External cron triggers
+
+The API exposes protected cron trigger endpoints for external schedulers such as cron-job.org:
+
+```text
+POST /api/cron/jobs/{job_name}/run
+Authorization: Bearer <CRON_API_TOKEN>
+```
+
+Supported job names: `refresh-report-snapshots`, `cleanup-old-exports`, `check-missing-attachments`, `generate-recurring-transactions`, and `monthly-financial-snapshot`.
+
+Using cron-job.org reduces VPS cron daemon setup and adds external monitoring, but it also adds a third-party dependency, exposes a public endpoint that must be protected with a strong token, and is not suitable for long-running filesystem-heavy jobs such as upload backups.
+
 ## Environment variables
 
 See `deploy/.env.example` for the full list and placeholder values. Public

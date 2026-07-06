@@ -11,7 +11,9 @@ from app.modules.users.service import UserService
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
-SysAdmin = Annotated[CurrentUser, Depends(require_roles(Role.SYSTEM_ADMIN))]
+SysAdmin = Annotated[
+    CurrentUser, Depends(require_roles(Role.SYSTEM_ADMIN, Role.MANAGEMENT))
+]
 
 
 @router.get("", response_model=list[UserOut])

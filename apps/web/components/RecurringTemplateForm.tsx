@@ -13,7 +13,7 @@ import type {
   RecurringTemplate,
   TransactionDirection,
 } from "@/lib/types";
-import { DIRECTIONS } from "@/lib/types";
+import { DIRECTIONS, isFinanceRole } from "@/lib/types";
 
 interface Props {
   action: (prev: ActionResult | null, formData: FormData) => Promise<ActionResult>;
@@ -45,7 +45,7 @@ export function RecurringTemplateForm({
     initial?.direction ?? "OUTFLOW"
   );
   const isEmployee = user.role === "EMPLOYEE";
-  const canAutoSubmit = user.role === "FINANCE_ADMIN";
+  const canAutoSubmit = isFinanceRole(user.role);
   const editableDepartments = isEmployee
     ? departments.filter((d) => d.id === user.department_id)
     : departments;

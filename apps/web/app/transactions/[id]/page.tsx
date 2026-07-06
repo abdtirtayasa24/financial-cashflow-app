@@ -18,6 +18,7 @@ import type {
   PaymentMethod,
   Transaction,
 } from "@/lib/types";
+import { isFinanceRole } from "@/lib/types";
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
@@ -84,9 +85,11 @@ export default async function TransactionDetailPage({
   const canMutate =
     isMutableStatus &&
     user != null &&
-    (user.role === "FINANCE_ADMIN" ||
+    (isFinanceRole(user.role) ||
       (user.role === "EMPLOYEE" && tx.created_by === user.id));
-  const canVoid = user?.role === "FINANCE_ADMIN" && tx.status === "APPROVED";
+  const canVoid =
+    isFinanceRole(user?.role) &&
+    tx.status === "APPROVED";
 
   return (
     <div className="container">

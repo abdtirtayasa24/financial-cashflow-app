@@ -55,7 +55,7 @@ class TransactionImportService:
         content: bytes,
         user: CurrentUser,
     ) -> ImportTransactionsOut:
-        if user.role != Role.FINANCE_ADMIN:
+        if user.role not in {Role.FINANCE_ADMIN, Role.MANAGEMENT}:
             raise AppError("forbidden", 403)
         if len(content) > MAX_IMPORT_FILE_BYTES:
             raise AppError("Import file exceeds 10 MB size limit", 422)

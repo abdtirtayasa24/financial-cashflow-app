@@ -45,18 +45,18 @@ A **Recurring Transaction Template** stores a transaction prototype plus a recur
 
 ### In-App Notifications
 
-Notifications are **in-app only** for the MVP — no email or external messaging service. Finance Admins are active users and will see notifications when logged in.
+Notifications are **in-app only** for the MVP — no email or external messaging service. Finance Admins and Management are active users and will see notifications when logged in.
 
 **Design:**
 - A `notifications` table: `id`, `user_id`, `type` (e.g. `PENDING_APPROVAL`, `RECURRING_DRAFT_READY`), `title`, `message`, `related_transaction_id`, `is_read`, `created_at`.
-- When a transaction is submitted, the service layer inserts a notification for all active Finance Admin users.
+- When a transaction is submitted, the service layer inserts a notification for all active Finance Admin and Management users.
 - When a recurring draft is generated, the service layer inserts a notification for the template creator.
 - Frontend fetches notifications on page load, shows unread count in a bell icon.
 - Email notifications can be added post-MVP without architectural changes.
 
 ### Transaction Import (CSV/Excel)
 
-**Finance Admin only.** Importing bulk transactions is a sensitive operation. Employees cannot import.
+**Finance Admin or Management only.** Importing bulk transactions is a sensitive operation. Employees cannot import.
 
 **Design:**
 - Imported transactions start as `DRAFT` — each row must be reviewed and submitted through the normal workflow. No auto-submit on import.
@@ -101,21 +101,21 @@ Editing creates an audit log entry capturing old and new values.
 
 ### Transaction Deletion Policy
 
-- **DRAFT and REJECTED transactions** can be **hard-deleted** by the creator or Finance Admin. These have never been submitted and have no financial impact.
+- **DRAFT and REJECTED transactions** can be **hard-deleted** by the creator, Finance Admin, or Management. These have never been submitted and have no financial impact.
 - **SUBMITTED, APPROVED, and VOIDED transactions cannot be deleted** — they have audit trail significance.
 - Deleting a DRAFT/REJECTED transaction also deletes its attachments (metadata + VPS files) and its audit logs.
 - A delete action creates a final audit log entry before the deletion happens.
 
 ### Roles & Authorization
 
-Roles are **strictly one-per-user** — no dual roles, no overlapping permissions.
+Roles are **strictly one-per-user** — no dual role assignments. Management is intentionally a broad oversight role that combines Finance Admin and System Admin capabilities.
 
 | Role | Permissions |
 |------|-------------|
 | **Employee** | Create draft transactions for own department, edit own draft/rejected transactions, submit own transactions, view own transactions |
 | **Department Manager** | View all transactions for own department. **Cannot** create, edit, submit, approve, reject, or void transactions |
 | **Finance Admin** | View all transactions across all departments, create transactions for any department, approve, reject, void, export reports |
-| **Management** | View dashboard and reports only. **Cannot** create, edit, approve, reject, or void transactions |
+| **Management** | Full access: Finance Admin transaction/report capabilities plus System Admin administrative capabilities |
 | **System Admin** | Manage users, departments, categories, payment methods, cash accounts, and app settings. Can view all transactions read-only. **Cannot** create, edit, submit, delete, approve, reject, or void transactions |
 
 If a department head needs to create transactions, they should be assigned the `EMPLOYEE` role, not `DEPARTMENT_MANAGER`.
@@ -124,7 +124,7 @@ If a department head needs to create transactions, they should be assigned the `
 
 ### App Settings & Attachment Threshold
 
-A simple `app_settings` table stores configurable values: `key VARCHAR`, `value TEXT`, `updated_by UUID`, `updated_at TIMESTAMPTZ`. Managed by System Admin through the admin UI — no redeploy needed to change values.
+A simple `app_settings` table stores configurable values: `key VARCHAR`, `value TEXT`, `updated_by UUID`, `updated_at TIMESTAMPTZ`. Managed by System Admin or Management through the admin UI — no redeploy needed to change values.
 
 **Attachment threshold settings:**
 
@@ -205,6 +205,6 @@ The original spec defined 8 milestones. Three "Should Have" features (recurring 
 | 5 | Notifications | Notifications table, notification service (triggered on submit + recurring draft generation), notification API endpoints, bell icon in frontend |
 | 6 | Reporting APIs | Approved cashflow SQL view, summary/monthly-trend/by-category/by-department/cash-account-balances/pending-approvals APIs, Excel/PDF export |
 | 7 | BI Dashboard | Dashboard page, date range + department + cash account filters, KPI cards, Apache ECharts charts, pending approval indicator |
-| 8 | Cron Jobs and Operational Scripts | Daily snapshot, monthly snapshot, export cleanup, missing attachment check, upload backup, cron config |
+| 8 | Cron Jobs and Operational Scripts | Daily snapshot, monthly snapshot, export cleanup, missing attachment check, upload backup, cron config, protected external cron trigger API |
 | 9 | Recurring Transactions & CSV/Excel Import | Recurring template CRUD, generation cron job, CSV/Excel import endpoint + UI, app settings admin UI |
 | 10 | Production Deployment and UAT | Production VPS, Docker Compose deployment, HTTPS, migrations applied, seed data, UAT, bug fixes |

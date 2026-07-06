@@ -6,7 +6,7 @@ product
 
 ## Users
 
-The primary day-to-day users are **Finance Admins** who handle cashflow data entry, transaction approvals, and financial reporting. Secondary users include **Department Managers** (review department-level activity), **Employees** (record transactions for their department), **Management** (consume dashboards and reports), and **System Admins** (manage users and configuration).
+The primary day-to-day users are **Finance Admins** who handle cashflow data entry, transaction approvals, and financial reporting. Secondary users include **Department Managers** (review department-level activity), **Employees** (record transactions for their department), **Management** (full-access finance and administration oversight), and **System Admins** (manage users and configuration).
 
 Users work across **desktop at the office and mobile in the field** — both form factors are first-class, not a responsive afterthought. The typical session is task-focused: record a transaction, review pending approvals, check a dashboard, or manage an admin entity. Users are internal, authenticated, and repeat users who develop muscle memory with the interface.
 
@@ -14,7 +14,7 @@ Users work across **desktop at the office and mobile in the field** — both for
 
 A centralized application for recording, classifying, reviewing, and analyzing cash inflows and outflows across a single company with multiple departments. It replaces spreadsheets and disconnected finance tools with a secure, auditable, role-based system that provides timely financial visibility — cashflow summaries, approval workflows, BI dashboards, and exportable reports.
 
-Success looks like: Finance Admins can record and approve transactions quickly without friction; Management can trust the dashboard numbers at a glance; the approval audit trail is complete and transparent; and the tool feels like it belongs in a serious finance department.
+Success looks like: Finance Admins can record and approve transactions quickly without friction; Management can operate with full finance and administration oversight while trusting dashboard numbers at a glance; the approval audit trail is complete and transparent; and the tool feels like it belongs in a serious finance department.
 
 ## Brand Personality
 

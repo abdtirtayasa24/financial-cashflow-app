@@ -47,7 +47,7 @@ _VIEW_ROLES = {
     Role.MANAGEMENT,
     Role.SYSTEM_ADMIN,
 }
-_CREATE_ROLES = {Role.EMPLOYEE, Role.FINANCE_ADMIN}
+_CREATE_ROLES = {Role.EMPLOYEE, Role.FINANCE_ADMIN, Role.MANAGEMENT}
 DEFAULT_LIST_LIMIT = 50
 MAX_LIST_LIMIT = 200
 
@@ -75,7 +75,7 @@ class TransactionService:
     def _can_mutate(self, tx: dict[str, Any], user: CurrentUser) -> bool:
         if tx["status"] not in _MUTABLE_STATUSES:
             return False
-        if user.role == Role.FINANCE_ADMIN:
+        if user.role in {Role.FINANCE_ADMIN, Role.MANAGEMENT}:
             return True
         if user.role == Role.EMPLOYEE:
             return bool(tx["created_by"] == user.id)
@@ -96,9 +96,10 @@ class TransactionService:
             raise AppError("forbidden", 403)
 
     def _require_finance_admin(self, user: CurrentUser) -> None:
-        # Approve / reject / void are Finance Admin only. Enforced in the
-        # service layer (router also authenticates via get_current_user).
-        if user.role != Role.FINANCE_ADMIN:
+        # Approve / reject / void are Finance Admin or Management only.
+        # Enforced in the service layer (router also authenticates via
+        # get_current_user).
+        if user.role not in {Role.FINANCE_ADMIN, Role.MANAGEMENT}:
             raise AppError("forbidden", 403)
 
     def _require_status(self, tx: dict[str, Any], expected: str) -> None:

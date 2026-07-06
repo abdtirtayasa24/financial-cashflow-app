@@ -46,7 +46,7 @@ The MVP will focus on accurate cashflow recording, basic financial categorizatio
 * The system should allow exporting reports to Excel and PDF.
 * The dashboard should include charts for monthly cashflow trends, top expense categories, and cash balance movement.
 * The system should send notifications for pending approvals (in-app only — see Method Section 7b).
-* The system should allow importing transactions from CSV or Excel files (Finance Admin only — see Method Section 7c).
+* The system should allow importing transactions from CSV or Excel files (Finance Admin or Management only — see Method Section 7c).
 
 ### Could Have
 
@@ -330,14 +330,14 @@ Supabase documents Row Level Security as a PostgreSQL primitive that can protect
 
 Roles:
 
-Roles are **strictly one-per-user** — no dual roles, no overlapping permissions.
+Roles are **strictly one-per-user** — no dual role assignments. Management is intentionally a broad oversight role that combines Finance Admin and System Admin capabilities.
 
 | Role               | Access                                                                                     |
 | ------------------ | ----------------------------------------------------------------------------------------- |
 | Employee           | Create draft transactions for own department, edit own draft/rejected transactions, submit own transactions, view own transactions |
 | Department Manager | View all transactions for own department. **Cannot** create, edit, submit, approve, reject, or void transactions |
 | Finance Admin      | View all transactions, create transactions for any department, review, approve, reject, void, edit allowed records, export reports |
-| Management         | View dashboards and reports only. **Cannot** create, edit, approve, reject, or void transactions |
+| Management         | Full access: Finance Admin transaction/report capabilities plus System Admin administrative capabilities |
 | System Admin       | Manage users, departments, categories, payment methods, cash accounts, and app settings. **Cannot** approve, reject, or void transactions |
 
 If a department head needs to create transactions, they should be assigned the `EMPLOYEE` role, not `DEPARTMENT_MANAGER`.
@@ -671,6 +671,17 @@ Example VPS cron:
 
 For MVP simplicity, cron jobs should be idempotent. Running the same job twice should not duplicate financial data.
 
+External schedulers such as cron-job.org may trigger API-backed jobs through:
+
+```text
+POST /api/cron/jobs/{job_name}/run
+Authorization: Bearer <CRON_API_TOKEN>
+```
+
+Supported API-triggered jobs are `refresh-report-snapshots`, `cleanup-old-exports`, `check-missing-attachments`, `generate-recurring-transactions`, and `monthly-financial-snapshot`. Upload backups remain VPS/local because they are filesystem-heavy and not well suited to third-party HTTP timeout limits.
+
+Pros of cron-job.org: simpler VPS setup, external monitoring, and scheduler state outside the server. Cons: public endpoint attack surface, third-party availability dependency, token storage outside the VPS, network/timeout risk, and possible duplicate retries.
+
 ### 12. Reporting and BI Data Logic
 
 Official dashboard numbers must only use:
@@ -762,14 +773,14 @@ Notifications are **in-app only** for the MVP — no email or external messaging
 **Design:**
 
 * A `notifications` table: `id`, `user_id`, `type` (e.g. `PENDING_APPROVAL`, `RECURRING_DRAFT_READY`), `title`, `message`, `related_transaction_id`, `is_read`, `created_at`.
-* When a transaction is submitted, the service layer inserts a notification for all active Finance Admin users.
+* When a transaction is submitted, the service layer inserts a notification for all active Finance Admin and Management users.
 * When a recurring draft is generated, the service layer inserts a notification for the template creator.
 * Frontend fetches notifications on page load, shows unread count in a bell icon.
 * Email notifications can be added post-MVP without architectural changes.
 
 ### 12c. Transaction Import (CSV/Excel)
 
-**Finance Admin only.** Importing bulk transactions is a sensitive operation. Employees cannot import.
+**Finance Admin or Management only.** Importing bulk transactions is a sensitive operation. Employees cannot import.
 
 **Design:**
 
@@ -781,7 +792,7 @@ Notifications are **in-app only** for the MVP — no email or external messaging
 
 ### 12d. App Settings
 
-A simple `app_settings` table stores configurable values: `key VARCHAR`, `value TEXT`, `updated_by UUID`, `updated_at TIMESTAMPTZ`. Managed by System Admin through the admin UI — no redeploy needed to change values.
+A simple `app_settings` table stores configurable values: `key VARCHAR`, `value TEXT`, `updated_by UUID`, `updated_at TIMESTAMPTZ`. Managed by System Admin or Management through the admin UI — no redeploy needed to change values.
 
 **Attachment threshold settings:**
 
@@ -1125,7 +1136,7 @@ Transaction number format:
 
 Create transaction:
   - Employee can create only for own department.
-  - Finance Admin can create for any department.
+  - Finance Admin or Management can create for any department.
   - Amount must be greater than zero.
   - Direction must be INFLOW or OUTFLOW.
   - Category must match direction or be BOTH.
@@ -1143,14 +1154,14 @@ Edit transaction:
 
 Delete transaction:
   - Only DRAFT or REJECTED transactions can be hard-deleted.
-  - Only the creator or Finance Admin can delete.
+  - Only the creator, Finance Admin, or Management can delete.
   - SUBMITTED, APPROVED, and VOIDED transactions cannot be deleted.
   - Deleting a DRAFT/REJECTED transaction also deletes its attachments (metadata + VPS files)
     and its audit logs.
   - A delete action creates a final audit log entry before the deletion happens.
 
 Submit transaction:
-  - Only creator or Finance Admin can submit.
+  - Only creator, Finance Admin, or Management can submit.
   - Required fields must be complete.
   - Payment method is required for manual entry (service layer validation).
   - Attachment is required if attachment_threshold_enabled = true
@@ -1158,18 +1169,18 @@ Submit transaction:
   - Status changes from DRAFT or REJECTED to SUBMITTED.
 
 Approve transaction:
-  - Only Finance Admin can approve.
+  - Only Finance Admin or Management can approve.
   - Status must be SUBMITTED.
   - Set reviewed_by and reviewed_at.
   - Approved transaction becomes visible in official dashboard.
 
 Reject transaction:
-  - Only Finance Admin can reject.
+  - Only Finance Admin or Management can reject.
   - Status must be SUBMITTED.
   - Rejection reason is required.
 
 Void transaction:
-  - Only Finance Admin can void.
+  - Only Finance Admin or Management can void.
   - Status must be APPROVED.
   - Void reason is required.
   - Voided transaction is excluded from reports (status is no longer APPROVED,
@@ -1350,7 +1361,7 @@ Main frontend pages:
 | `/transactions`        | Transaction list and filters         |
 | `/transactions/new`    | Create cashflow record               |
 | `/transactions/[id]`   | View detail, attachment, audit trail |
-| `/approvals`           | Finance Admin approval queue         |
+| `/approvals`           | Finance Admin or Management approval queue         |
 | `/reports`             | Export financial reports             |
 | `/admin/users`         | Manage users and roles               |
 | `/admin/departments`   | Manage departments                   |
@@ -1567,7 +1578,7 @@ Build in this sequence:
 6. Transaction create/list/detail flow
 7. Attachment upload/download
 8. Submit transaction flow (with attachment threshold enforcement)
-9. Finance Admin approval/rejection/void flow
+9. Finance Admin or Management approval/rejection/void flow
 10. Transaction deletion (DRAFT/REJECTED only)
 11. Audit logging
 12. Notifications service (in-app)
@@ -1612,7 +1623,7 @@ Attachment threshold:
   - Submit allowed when amount < threshold
 
 Recurring transactions:
-  - Finance Admin can create auto-submit template
+  - Finance Admin or Management can create auto-submit template
   - Employee cannot create auto-submit template
   - Employee can create draft/reminder template for own department
   - Department Manager cannot create templates
@@ -1624,7 +1635,7 @@ Notifications:
   - User can fetch and mark notifications as read
 
 Import:
-  - Finance Admin can import CSV
+  - Finance Admin or Management can import CSV
   - Employee cannot import
   - Partial success returns error report
   - Imported transactions start as DRAFT
@@ -1648,10 +1659,10 @@ UI:
   - Dashboard loads KPI cards
   - Current cash balance shown (as-of now, not date-range-filtered)
   - Transaction form validation works
-  - Finance approval page only visible to Finance Admin
+  - Finance approval page only visible to Finance Admin or Management
   - Attachment upload handles invalid file types
   - Notification bell shows unread count
-  - Import page only visible to Finance Admin
+  - Import page only visible to Finance Admin or Management
   - Recurring templates page visible based on role
 ```
 
@@ -1667,7 +1678,7 @@ Security:
   - Upload folder is not publicly served.
   - HTTPS is enabled.
   - Strong admin passwords are enforced.
-  - Only Finance Admin can approve, reject, and void transactions.
+  - Only Finance Admin or Management can approve, reject, and void transactions.
 
 Database:
   - Supabase migrations are applied.
@@ -1738,7 +1749,7 @@ Completion criteria:
 
 * User can log in.
 * FastAPI can identify current user and role.
-* System Admin can manage users, departments, categories, payment methods, cash accounts, and app settings.
+* System Admin or Management can manage users, departments, categories, payment methods, cash accounts, and app settings.
 
 ---
 
@@ -1779,12 +1790,12 @@ Deliverables:
 * Reject transaction action with reason.
 * Void approved transaction action with reason.
 * Audit logs for approval, rejection, and voiding.
-* Permission checks for Finance Admin-only actions.
+* Permission checks for Finance Admin or Management actions.
 * Rejected transactions can be edited and resubmitted directly (REJECTED → SUBMITTED).
 
 Completion criteria:
 
-* Finance Admin can approve submitted transactions.
+* Finance Admin or Management can approve submitted transactions.
 * Rejected transactions return to editable state and can be resubmitted directly.
 * Approved transactions cannot be edited directly.
 * Voided transactions are excluded from financial reports.
@@ -1799,14 +1810,14 @@ Completion criteria:
 Deliverables:
 
 * Notifications table and migration.
-* Notification service triggered when a transaction is submitted (creates notifications for all active Finance Admin users).
+* Notification service triggered when a transaction is submitted (creates notifications for all active Finance Admin and Management users).
 * Notification service triggered when a recurring draft is generated (creates notification for template creator).
 * Notification API endpoints (list, mark as read, unread count).
 * Bell icon in frontend showing unread count.
 
 Completion criteria:
 
-* Submitting a transaction creates notifications for Finance Admin users.
+* Submitting a transaction creates notifications for Finance Admin and Management users.
 * Users can view and mark notifications as read.
 * Unread count displays in the bell icon.
 
@@ -1864,7 +1875,7 @@ Deliverables:
 
 Completion criteria:
 
-* Management users can view financial dashboard.
+* Management users can view dashboards and perform full finance/admin operations.
 * Dashboard is responsive on desktop and mobile browser.
 * Dashboard values match backend reporting APIs.
 * Current cash balance is not affected by date range filter.
@@ -1906,17 +1917,17 @@ Deliverables:
 * Recurring transaction template CRUD (create, list, detail, edit, deactivate).
 * Auto-submit and draft/reminder submission modes.
 * Authorization: Finance Admin can create any; Employee can create draft/reminder only for own department.
-* CSV/Excel import endpoint and UI (Finance Admin only).
+* CSV/Excel import endpoint and UI (Finance Admin or Management only).
 * Partial success import with error reporting.
 * App settings admin UI (attachment threshold toggle and amount).
 
 Completion criteria:
 
-* Finance Admin can create auto-submit and draft/reminder recurring templates.
+* Finance Admin or Management can create auto-submit and draft/reminder recurring templates.
 * Employee can create draft/reminder templates for own department only.
 * Generated transactions follow the normal approval workflow.
-* Finance Admin can import CSV/Excel files with partial success reporting.
-* System Admin can configure attachment threshold settings through admin UI.
+* Finance Admin or Management can import CSV/Excel files with partial success reporting.
+* System Admin or Management can configure attachment threshold settings through admin UI.
 
 ---
 
@@ -1931,7 +1942,7 @@ Deliverables:
 * HTTPS enabled.
 * Supabase production migrations applied.
 * Initial departments, categories, payment methods, and cash accounts configured.
-* Finance Admin and Management users created.
+* Finance Admin, Management, and System Admin users created.
 * UAT test cases executed.
 * Bug fixes completed.
 
@@ -1959,16 +1970,16 @@ The system should be evaluated against the original MVP requirements.
 | ------------------- | ----------------------------------------------------------------------- |
 | Cashflow recording  | Users can create inflow and outflow transactions with required fields.  |
 | Department tracking | Transactions can be assigned to departments and filtered by department. |
-| Approval workflow   | Finance Admin can approve, reject, and void transactions.               |
+| Approval workflow   | Finance Admin or Management can approve, reject, and void transactions.               |
 | Attachments         | Users can upload receipts, invoices, or payment proofs securely.        |
 | Audit trail         | All important transaction actions are recorded.                         |
 | Dashboard           | Management can view inflow, outflow, net cashflow, and cash balance.    |
 | Reports             | Reports include only approved transactions.                             |
 | Export              | Users can export financial reports to Excel and PDF.                    |
-| Notifications       | Finance Admins receive in-app notifications for pending approvals.      |
+| Notifications       | Finance Admins and Management receive in-app notifications for pending approvals.      |
 | Recurring           | Recurring templates generate transactions on schedule (auto-submit or draft). |
 | Import              | Finance Admin can import transactions from CSV/Excel with partial success. |
-| App settings        | System Admin can toggle attachment threshold and configure threshold amount. |
+| App settings        | System Admin or Management can toggle attachment threshold and configure threshold amount. |
 
 ---
 
@@ -2013,7 +2024,7 @@ Checks:
 * Employee cannot view other users’ transactions.
 * Department Manager cannot view other departments.
 * Department Manager cannot create, edit, submit, approve, reject, or void transactions.
-* Management cannot create, edit, approve, reject, or void transactions.
+* Management can create, edit, submit, delete, approve, reject, void, import, and administer the system.
 * Finance Admin can access all transaction records.
 * System Admin cannot approve, reject, or void transactions.
 * Employee cannot create auto-submit recurring templates.

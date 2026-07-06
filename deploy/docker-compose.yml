@@ -27,6 +27,7 @@ services:
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
       SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       JWT_SECRET: ${JWT_SECRET}
+      CRON_API_TOKEN: ${CRON_API_TOKEN}
       UPLOAD_DIR: /var/app/financial-cashflow/uploads
       EXPORTS_DIR: /var/app/financial-cashflow/exports
     volumes:
@@ -44,6 +45,7 @@ services:
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
       SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       JWT_SECRET: ${JWT_SECRET}
+      CRON_API_TOKEN: ${CRON_API_TOKEN}
       UPLOAD_DIR: /var/app/financial-cashflow/uploads
       EXPORTS_DIR: /var/app/financial-cashflow/exports
     volumes:

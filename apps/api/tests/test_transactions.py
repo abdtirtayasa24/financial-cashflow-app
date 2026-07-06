@@ -171,12 +171,15 @@ def test_department_manager_cannot_edit_or_submit(
     assert submit.status_code == 403
 
 
-def test_management_cannot_create(client: TestClient, fake_db: FakeClient) -> None:
+def test_management_can_create_transaction_for_any_department(
+    client: TestClient, fake_db: FakeClient
+) -> None:
     user_id = seed_user(fake_db, "MANAGEMENT")
     resp = client.post(
         "/api/transactions", headers=auth_header(make_token(user_id)), json=_body()
     )
-    assert resp.status_code == 403
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["created_by"] == user_id
 
 
 def test_transaction_no_increments_per_direction_month(
@@ -259,7 +262,7 @@ def test_finance_admin_views_all(client: TestClient, fake_db: FakeClient) -> Non
     assert len(client.get("/api/transactions", headers=token).json()) == 1
 
 
-def test_management_views_all_read_only(
+def test_management_views_all_transactions(
     client: TestClient, fake_db: FakeClient
 ) -> None:
     mgmt_id = seed_user(fake_db, "MANAGEMENT")
@@ -489,7 +492,6 @@ def test_non_finance_users_cannot_approve(
     roles = [
         ("EMPLOYEE", DEPT_OWN),
         ("DEPARTMENT_MANAGER", DEPT_OWN),
-        ("MANAGEMENT", None),
         ("SYSTEM_ADMIN", None),
     ]
     for i, (role, department_id) in enumerate(roles):
@@ -586,6 +588,71 @@ def test_reject_second_call_conflicts_without_duplicate_audit(
     assert logs[0]["reason"] == "Missing receipt"
 
 
+def test_management_can_submit_transaction(
+    client: TestClient, fake_db: FakeClient
+) -> None:
+    emp_id = seed_user(fake_db, "EMPLOYEE", department_id=DEPT_OWN)
+    mgmt_id = seed_user(fake_db, "MANAGEMENT")
+    tx_id = seed_transaction(fake_db, created_by=emp_id)
+
+    resp = client.post(
+        f"/api/transactions/{tx_id}/submit",
+        headers=auth_header(make_token(mgmt_id)),
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["status"] == "SUBMITTED"
+
+
+def test_management_can_approve_submitted_transaction(
+    client: TestClient, fake_db: FakeClient
+) -> None:
+    creator_id = seed_user(fake_db, "FINANCE_ADMIN", email="creator@x.com")
+    mgmt_id = seed_user(fake_db, "MANAGEMENT")
+    tx_id = seed_transaction(
+        fake_db, created_by=creator_id, status="SUBMITTED", transaction_no="T-S"
+    )
+
+    resp = client.post(
+        f"/api/transactions/{tx_id}/approve",
+        headers=auth_header(make_token(mgmt_id)),
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["status"] == "APPROVED"
+    assert resp.json()["reviewed_by"] == mgmt_id
+
+
+def test_management_can_reject_and_void_transactions(
+    client: TestClient, fake_db: FakeClient
+) -> None:
+    creator_id = seed_user(fake_db, "FINANCE_ADMIN", email="creator@x.com")
+    mgmt_id = seed_user(fake_db, "MANAGEMENT")
+    submitted = seed_transaction(
+        fake_db, created_by=creator_id, status="SUBMITTED", transaction_no="T-S"
+    )
+    approved = seed_transaction(
+        fake_db, created_by=creator_id, status="APPROVED", transaction_no="T-A"
+    )
+    token = auth_header(make_token(mgmt_id))
+
+    reject = client.post(
+        f"/api/transactions/{submitted}/reject",
+        headers=token,
+        json={"reason": "No"},
+    )
+    void = client.post(
+        f"/api/transactions/{approved}/void",
+        headers=token,
+        json={"reason": "Duplicate"},
+    )
+
+    assert reject.status_code == 200, reject.text
+    assert reject.json()["status"] == "REJECTED"
+    assert void.status_code == 200, void.text
+    assert void.json()["status"] == "VOIDED"
+
+
 def test_non_finance_users_cannot_reject_or_void(
     client: TestClient, fake_db: FakeClient
 ) -> None:
@@ -599,7 +666,6 @@ def test_non_finance_users_cannot_reject_or_void(
     roles = [
         ("EMPLOYEE", DEPT_OWN),
         ("DEPARTMENT_MANAGER", DEPT_OWN),
-        ("MANAGEMENT", None),
         ("SYSTEM_ADMIN", None),
     ]
     for i, (role, department_id) in enumerate(roles):
@@ -706,6 +772,21 @@ def test_void_second_call_conflicts_without_duplicate_audit(
 
 
 # ── deletion ───────────────────────────────────────────────────
+
+
+def test_management_can_delete_draft(
+    client: TestClient, fake_db: FakeClient
+) -> None:
+    creator_id = seed_user(fake_db, "FINANCE_ADMIN", email="creator@x.com")
+    mgmt_id = seed_user(fake_db, "MANAGEMENT")
+    tx_id = seed_transaction(fake_db, created_by=creator_id)
+
+    resp = client.delete(
+        f"/api/transactions/{tx_id}", headers=auth_header(make_token(mgmt_id))
+    )
+
+    assert resp.status_code == 204
+    assert not any(t["id"] == tx_id for t in fake_db.tables["cashflow_transactions"])
 
 
 def test_owner_can_delete_draft(

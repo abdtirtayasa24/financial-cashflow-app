@@ -81,6 +81,28 @@ def test_finance_admin_imports_valid_csv_rows_as_draft(
     )
 
 
+def test_management_can_import_transactions(
+    client: TestClient, fake_db: FakeClient
+) -> None:
+    _seed_refs(fake_db)
+    user_id = seed_user(fake_db, "MANAGEMENT")
+    file = _csv(
+        [
+            CSV_REQUIRED_HEADER,
+            "2026-07-01,INFLOW,1000000,Sales Income,FIN,Main Bank,Bank Transfer",
+        ]
+    )
+
+    resp = client.post(
+        "/api/import/transactions",
+        headers=auth_header(make_token(user_id)),
+        files={"file": file},
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["imported_count"] == 1
+
+
 def test_employee_cannot_import_transactions(
     client: TestClient, fake_db: FakeClient
 ) -> None:

@@ -29,6 +29,7 @@ class Settings(BaseSettings):
 
     upload_dir: str = "/var/app/financial-cashflow/uploads"
     exports_dir: str = "/var/app/financial-cashflow/exports"
+    cron_api_token: str = ""
 
     cors_origins: str = "*"
 

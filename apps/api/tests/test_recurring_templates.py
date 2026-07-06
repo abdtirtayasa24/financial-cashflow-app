@@ -66,6 +66,22 @@ def _seed_refs(db: FakeClient) -> None:
     )
 
 
+def test_management_can_create_auto_submit_template(
+    client: TestClient, fake_db: FakeClient
+) -> None:
+    _seed_refs(fake_db)
+    user_id = seed_user(fake_db, "MANAGEMENT")
+
+    resp = client.post(
+        "/api/recurring-templates",
+        headers=auth_header(make_token(user_id)),
+        json=_body(submission_mode="AUTO_SUBMIT", department_id=DEPT_OTHER),
+    )
+
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["submission_mode"] == "AUTO_SUBMIT"
+
+
 def test_finance_admin_can_create_auto_submit_template(
     client: TestClient, fake_db: FakeClient
 ) -> None:

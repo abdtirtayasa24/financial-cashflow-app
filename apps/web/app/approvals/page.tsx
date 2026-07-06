@@ -6,6 +6,7 @@ import { apiGet } from "@/lib/api";
 import { getCurrentUser } from "@/lib/current-user";
 import { formatDate, formatIDR } from "@/lib/format";
 import type { Department, Transaction } from "@/lib/types";
+import { isFinanceRole } from "@/lib/types";
 
 const PAGE_SIZE = 50;
 
@@ -31,13 +32,13 @@ export default async function ApprovalsPage({
   const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
   const offset = (page - 1) * PAGE_SIZE;
 
-  if (user?.role !== "FINANCE_ADMIN") {
+  if (!user || !isFinanceRole(user.role)) {
     return (
       <div className="container">
         <div className="empty">
           <div className="empty__title">Approvals are restricted</div>
           <p className="empty__desc">
-            Only Finance Admin users can approve, reject, or void transactions.
+            Only Finance Admin or Management users can approve, reject, or void transactions.
           </p>
         </div>
       </div>

@@ -16,7 +16,9 @@ from app.modules.cashflow_categories.service import CategoryService
 router = APIRouter(prefix="/categories", tags=["Cashflow Categories"])
 
 CurrentUserDep = Annotated[CurrentUser, Depends(get_current_user)]
-SysAdmin = Annotated[CurrentUser, Depends(require_roles(Role.SYSTEM_ADMIN))]
+SysAdmin = Annotated[
+    CurrentUser, Depends(require_roles(Role.SYSTEM_ADMIN, Role.MANAGEMENT))
+]
 
 
 def _not_found() -> HTTPException:

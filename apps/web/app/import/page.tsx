@@ -1,14 +1,15 @@
 import { ImportTransactionsForm } from "@/components/ImportTransactionsForm";
 import { getCurrentUser } from "@/lib/current-user";
+import { isFinanceRole } from "@/lib/types";
 
 export default async function ImportPage() {
   const user = await getCurrentUser();
-  if (!user || user.role !== "FINANCE_ADMIN") {
+  if (!user || !isFinanceRole(user.role)) {
     return (
       <div className="container">
         <div className="empty">
           <div className="empty__title">Not available</div>
-          <p className="empty__desc">Only Finance Admin users can import transactions.</p>
+          <p className="empty__desc">Only Finance Admin or Management users can import transactions.</p>
         </div>
       </div>
     );
