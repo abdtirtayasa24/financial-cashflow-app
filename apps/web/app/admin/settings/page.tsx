@@ -1,9 +1,12 @@
-import { upsertAppSetting } from "@/app/actions";
+import { updateAttachmentThresholdSettings, upsertAppSetting } from "@/app/actions";
 import { apiGet } from "@/lib/api";
 import type { AppSetting } from "@/lib/types";
 
 export default async function SettingsPage() {
   const settings = await apiGet<AppSetting[]>("/api/settings");
+  const byKey = new Map(settings.map((s) => [s.key, s.value]));
+  const thresholdEnabled = byKey.get("attachment_threshold_enabled") !== "false";
+  const thresholdAmount = byKey.get("attachment_threshold_amount") ?? "5000000";
 
   return (
     <div className="container">
@@ -15,6 +18,29 @@ export default async function SettingsPage() {
       </div>
 
       <div className="section">
+        <h2 className="section__title">Attachment threshold</h2>
+        <form action={updateAttachmentThresholdSettings} className="card form-grid" aria-label="Attachment threshold settings">
+          <div className="form-row">
+            <div className="field">
+              <label htmlFor="attachment_threshold_enabled">Require attachments above threshold</label>
+              <select id="attachment_threshold_enabled" name="attachment_threshold_enabled" defaultValue={thresholdEnabled ? "on" : "off"}>
+                <option value="on">Enabled</option>
+                <option value="off">Disabled</option>
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="attachment_threshold_amount">Threshold amount (IDR)</label>
+              <input id="attachment_threshold_amount" name="attachment_threshold_amount" type="number" min="0.01" step="0.01" required className="tnum" defaultValue={thresholdAmount} />
+            </div>
+          </div>
+          <div className="form-actions">
+            <button type="submit" className="btn-primary">Save threshold settings</button>
+          </div>
+        </form>
+      </div>
+
+      <div className="section">
+        <h2 className="section__title">Advanced key/value settings</h2>
         <form action={upsertAppSetting} className="card form-grid" aria-label="Add or update setting">
           <div className="form-row">
             <div className="field">

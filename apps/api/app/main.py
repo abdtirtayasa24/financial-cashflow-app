@@ -14,8 +14,10 @@ from app.modules.attachments.router import router as attachments_router
 from app.modules.cash_accounts.router import router as cash_accounts_router
 from app.modules.cashflow_categories.router import router as categories_router
 from app.modules.departments.router import router as departments_router
+from app.modules.imports.router import router as imports_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.payment_methods.router import router as payment_methods_router
+from app.modules.recurring_templates.router import router as recurring_templates_router
 from app.modules.reports.router import router as reports_router
 from app.modules.transactions.router import router as transactions_router
 from app.modules.users.router import router as users_router
@@ -58,7 +60,9 @@ app.include_router(payment_methods_router, prefix=settings.api_prefix)
 app.include_router(cash_accounts_router, prefix=settings.api_prefix)
 app.include_router(settings_router, prefix=settings.api_prefix)
 app.include_router(notifications_router, prefix=settings.api_prefix)
+app.include_router(imports_router, prefix=settings.api_prefix)
 app.include_router(reports_router, prefix=settings.api_prefix)
+app.include_router(recurring_templates_router, prefix=settings.api_prefix)
 app.include_router(transactions_router, prefix=settings.api_prefix)
 app.include_router(attachments_router, prefix=settings.api_prefix)
 

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { apiSend, apiUpload } from "@/lib/api";
 import { createClient } from "@/lib/supabase-server";
+import type { ImportTransactionsResult } from "@/lib/types";
 
 function str(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "");
@@ -124,6 +125,20 @@ export async function upsertAppSetting(formData: FormData): Promise<void> {
   await apiSend("/api/settings", "PUT", {
     key: str(formData, "key"),
     value: str(formData, "value"),
+  });
+  revalidatePath("/admin/settings");
+}
+
+export async function updateAttachmentThresholdSettings(
+  formData: FormData
+): Promise<void> {
+  await apiSend("/api/settings", "PUT", {
+    key: "attachment_threshold_enabled",
+    value: str(formData, "attachment_threshold_enabled") === "on" ? "true" : "false",
+  });
+  await apiSend("/api/settings", "PUT", {
+    key: "attachment_threshold_amount",
+    value: str(formData, "attachment_threshold_amount"),
   });
   revalidatePath("/admin/settings");
 }
@@ -314,6 +329,82 @@ export async function deleteAttachment(formData: FormData): Promise<void> {
     "DELETE"
   );
   revalidatePath(`/transactions/${id}`);
+}
+
+// --- Recurring templates ---
+function recurringPayload(formData: FormData) {
+  return {
+    department_id: str(formData, "department_id"),
+    category_id: str(formData, "category_id"),
+    cash_account_id: str(formData, "cash_account_id"),
+    payment_method_id: str(formData, "payment_method_id"),
+    direction: str(formData, "direction"),
+    amount: Number(str(formData, "amount")),
+    counterparty_name: opt(formData, "counterparty_name"),
+    reference_no: opt(formData, "reference_no"),
+    description: opt(formData, "description"),
+    submission_mode: str(formData, "submission_mode"),
+    frequency: str(formData, "frequency"),
+    interval: Number(str(formData, "interval") || 1),
+    next_run_date: str(formData, "next_run_date"),
+    end_date: opt(formData, "end_date"),
+  };
+}
+
+export async function createRecurringTemplate(
+  _prev: ActionResult | null,
+  formData: FormData
+): Promise<ActionResult> {
+  try {
+    await apiSend("/api/recurring-templates", "POST", recurringPayload(formData));
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to create template" };
+  }
+  revalidatePath("/recurring");
+  return { error: null };
+}
+
+export async function updateRecurringTemplate(
+  _prev: ActionResult | null,
+  formData: FormData
+): Promise<ActionResult> {
+  const id = str(formData, "id");
+  try {
+    await apiSend(`/api/recurring-templates/${id}`, "PATCH", recurringPayload(formData));
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to update template" };
+  }
+  revalidatePath("/recurring");
+  return { error: null };
+}
+
+export async function deactivateRecurringTemplate(formData: FormData): Promise<void> {
+  await apiSend(`/api/recurring-templates/${str(formData, "id")}/deactivate`, "POST");
+  revalidatePath("/recurring");
+}
+
+// --- Import ---
+export interface ImportActionResult extends ActionResult {
+  result?: ImportTransactionsResult;
+}
+
+export async function importTransactions(
+  _prev: ImportActionResult | null,
+  formData: FormData
+): Promise<ImportActionResult> {
+  const file = formData.get("file");
+  if (!(file instanceof File)) {
+    return { error: "No file selected" };
+  }
+  const payload = new FormData();
+  payload.set("file", file);
+  try {
+    const result = await apiUpload<ImportTransactionsResult>("/api/import/transactions", payload);
+    revalidatePath("/transactions");
+    return { error: null, result };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to import transactions" };
+  }
 }
 
 // --- Notifications ---

@@ -164,6 +164,45 @@ export interface UnreadCount {
   count: number;
 }
 
+export type RecurringSubmissionMode = "AUTO_SUBMIT" | "DRAFT";
+export type RecurrenceFrequency = "DAILY" | "WEEKLY" | "MONTHLY";
+
+export interface RecurringTemplate {
+  id: string;
+  department_id: string;
+  category_id: string;
+  cash_account_id: string;
+  payment_method_id: string | null;
+  direction: TransactionDirection;
+  amount: number;
+  currency: string;
+  counterparty_name: string | null;
+  reference_no: string | null;
+  description: string | null;
+  submission_mode: RecurringSubmissionMode;
+  frequency: RecurrenceFrequency;
+  interval: number;
+  next_run_date: string;
+  end_date: string | null;
+  is_active: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ImportRowError {
+  row_number: number;
+  message: string;
+}
+
+export interface ImportTransactionsResult {
+  total_rows: number;
+  imported_count: number;
+  failed_count: number;
+  imported: Array<{ id: string; transaction_no: string }>;
+  errors: ImportRowError[];
+}
+
 export interface ReportSummary {
   totalInflow: number;
   totalOutflow: number;

@@ -12,8 +12,10 @@ import {
   LogOut,
   Menu,
   ReceiptText,
+  Repeat,
   Settings,
   Tags,
+  Upload,
   Users,
   Wallet,
 } from "lucide-react";
@@ -37,15 +39,23 @@ interface NavItem {
   href: string;
   label: string;
   icon: typeof LayoutDashboard;
+  roles?: CurrentUser["role"][];
 }
 
 const mainNav: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/transactions", label: "Transactions", icon: ReceiptText },
+  {
+    href: "/recurring",
+    label: "Recurring",
+    icon: Repeat,
+    roles: ["FINANCE_ADMIN", "EMPLOYEE", "DEPARTMENT_MANAGER"],
+  },
 ];
 
 const financeNav: NavItem[] = [
   { href: "/approvals", label: "Approvals", icon: ClipboardCheck },
+  { href: "/import", label: "Import", icon: Upload },
 ];
 
 const adminNav: NavItem[] = [
@@ -121,7 +131,7 @@ export function AppShell({
 
         <nav className="sidebar__nav">
           <div className="sidebar__nav-group">
-            {mainNav.map((item) => {
+            {mainNav.filter((item) => !item.roles || item.roles.includes(user.role)).map((item) => {
               const Icon = item.icon;
               const active = isActive(pathname, item.href);
               return (
